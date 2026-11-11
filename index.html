@@ -1,0 +1,2818 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>تحدي البلاطات الثلاثية - Triple Tile Explorer</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;800;900&family=Inter:wght@500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      font-family: 'Cairo', 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+    .theme-meadow {
+      background: radial-gradient(circle at 50% 25%, #d9f99d 0%, #86efac 45%, #15803d 100%);
+    }
+    .theme-ocean {
+      background: radial-gradient(circle at 50% 25%, #bae6fd 0%, #38bdf8 45%, #0369a1 100%);
+    }
+    .theme-sunset {
+      background: radial-gradient(circle at 50% 25%, #fde68a 0%, #fb923c 45%, #9a3412 100%);
+    }
+    .theme-night {
+      background: radial-gradient(circle at 50% 25%, #312e81 0%, #1e1b4b 55%, #090d16 100%);
+    }
+    .theme-royal {
+      background: radial-gradient(circle at 50% 25%, #fef08a 0%, #b45309 48%, #451a03 100%);
+    }
+    .theme-sakura {
+      background: radial-gradient(circle at 50% 25%, #fce7f3 0%, #f472b6 48%, #831843 100%);
+    }
+
+    /* 3D Tile styling */
+    .game-tile {
+      position: absolute;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #ffffff 0%, #fef9ef 88%, #f3e8d2 100%);
+      border: 2px solid #e7d8be;
+      box-shadow:
+        0 6px 0 #cbb389,
+        0 9px 14px rgba(0, 0, 0, 0.28),
+        inset 0 2px 1px rgba(255, 255, 255, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease, opacity 0.2s ease, box-shadow 0.18s ease;
+      will-change: transform, left, top;
+    }
+    .game-tile:active:not(.tile-blocked) {
+      transform: translateY(4px) scale(0.95);
+      box-shadow:
+        0 2px 0 #cbb389,
+        0 4px 6px rgba(0, 0, 0, 0.22);
+    }
+    .tile-blocked {
+      filter: brightness(0.56) saturate(0.65) contrast(0.95);
+      cursor: not-allowed;
+      box-shadow:
+        0 5px 0 #8c7a5b,
+        0 7px 10px rgba(0, 0, 0, 0.35);
+    }
+    .tile-BlockedOverlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.22);
+      pointer-events: none;
+    }
+    .tile-highlight-hint {
+      animation: pulseHint 0.9s infinite alternate;
+      border-color: #f59e0b !important;
+      box-shadow:
+        0 6px 0 #d97706,
+        0 0 18px 4px rgba(251, 191, 36, 0.85) !important;
+    }
+    @keyframes pulseHint {
+      from { transform: scale(1); }
+      to { transform: scale(1.09) translateY(-3px); }
+    }
+    @keyframes popMatch {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.28) rotate(8deg); opacity: 0.9; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    .dock-slot {
+      width: 44px;
+      height: 52px;
+      border-radius: 11px;
+      background: rgba(30, 20, 10, 0.28);
+      border: 2px dashed rgba(255, 255, 255, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: all 0.18s ease;
+    }
+    @media (min-width: 400px) {
+      .dock-slot {
+        width: 48px;
+        height: 56px;
+      }
+    }
+    .dock-tile {
+      width: 100%;
+      height: 100%;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff 0%, #fef9ef 88%, #f3e8d2 100%);
+      border: 2px solid #e7d8be;
+      box-shadow: 0 4px 0 #cbb389, 0 5px 8px rgba(0,0,0,0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      animation: slotAppear 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .dock-tile-matching {
+      animation: popMatch 0.32s ease-out forwards;
+    }
+    @keyframes slotAppear {
+      from { transform: scale(0.5) translateY(-18px); opacity: 0.4; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .wood-tray {
+      background: linear-gradient(180deg, #a16207 0%, #713f12 65%, #422006 100%);
+      border: 3px solid #fde047;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.45), inset 0 3px 6px rgba(255,255,255,0.25);
+    }
+    .power-btn {
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+    .power-btn:active:not(:disabled) {
+      transform: translateY(3px) scale(0.94);
+    }
+    .power-btn:disabled {
+      filter: grayscale(0.85) opacity(0.55);
+      cursor: not-allowed;
+    }
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px) rotate(-3deg); }
+      50% { transform: translateY(-9px) rotate(4deg); }
+    }
+    .floating-tile {
+      animation: floatSlow 3.2s ease-in-out infinite;
+    }
+    .map-scroll-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .map-scroll-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.35);
+      border-radius: 9999px;
+    }
+    .map-node-active {
+      animation: pulseHint 1s infinite alternate;
+    }
+    #wheelDisc {
+      transition: transform 3.4s cubic-bezier(0.15, 0.88, 0.22, 1);
+    }
+    .timer-urgent {
+      animation: pulseHint 0.45s infinite alternate;
+      background-color: #dc2626 !important;
+      color: #ffffff !important;
+    }
+    @keyframes hapticBump {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      75% { transform: translateX(3px); }
+    }
+    .haptic-shake {
+      animation: hapticBump 0.14s ease-in-out;
+    }
+  </style>
+</head>
+<body id="appBody" class="theme-meadow h-screen w-screen flex flex-col justify-between select-none overflow-hidden">
+
+  <!-- TOP HUD BAR -->
+  <header class="w-full max-w-md mx-auto px-3 pt-2.5 pb-1 flex items-center justify-between gap-1.5 z-20">
+    <!-- Level & Coins -->
+    <div class="flex items-center gap-1.5">
+      <button id="btnOpenHome" type="button" title="الرئيسية والخريطة" class="w-9 h-9 rounded-2xl bg-amber-950/85 hover:bg-amber-900 text-amber-200 border-2 border-amber-400/80 shadow-md flex items-center justify-center text-base font-extrabold">
+        🏠
+      </button>
+      <button id="btnOpenLevels" type="button" class="flex items-center gap-1.5 bg-amber-950/80 hover:bg-amber-900 text-amber-100 border-2 border-amber-400/80 rounded-2xl px-2.5 py-1.5 shadow-md text-xs sm:text-sm font-extrabold">
+        <span>🏆</span>
+        <span>مرحلة <span id="hudLevel">1</span></span>
+      </button>
+      <div class="flex items-center gap-1 bg-amber-950/80 text-yellow-300 border-2 border-yellow-400/70 rounded-2xl px-2.5 py-1.5 shadow-md text-xs sm:text-sm font-extrabold">
+        <span>🪙</span>
+        <span id="hudCoins">150</span>
+      </div>
+    </div>
+
+    <!-- Score & Combo -->
+    <div class="flex items-center gap-1.5 bg-white/85 backdrop-blur-sm border-2 border-emerald-600/30 rounded-2xl px-2.5 py-1 shadow-sm">
+      <div class="text-center leading-tight">
+        <div class="text-[10px] text-slate-500 font-bold">النقاط</div>
+        <div id="hudScore" class="text-xs sm:text-sm font-black text-emerald-900">0</div>
+      </div>
+      <div id="comboBadge" class="hidden bg-orange-500 text-white text-[11px] font-black px-1.5 py-0.5 rounded-lg animate-bounce">
+        x2
+      </div>
+    </div>
+
+    <!-- Controls: Shop, Theme, Sound, APK Guide -->
+    <div class="flex items-center gap-1">
+      <button id="btnOpenQuestsHud" type="button" title="المهام والإنجازات" class="relative w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow flex items-center justify-center text-base font-extrabold border border-indigo-300">
+        <span>🏅</span>
+        <span id="questsHudDot" class="hidden absolute -top-1 -right-1 w-3 h-3 rounded-full bg-rose-500 border border-white animate-ping"></span>
+      </button>
+      <button id="btnOpenWheelHud" type="button" title="عجلة الحظ" class="w-9 h-9 rounded-xl bg-pink-500 hover:bg-pink-400 text-white shadow flex items-center justify-center text-base font-extrabold border border-pink-200">
+        🎡
+      </button>
+      <button id="btnOpenShopHud" type="button" title="المتجر" class="w-9 h-9 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 shadow flex items-center justify-center text-base font-extrabold border border-yellow-200">
+        🛒
+      </button>
+      <button id="btnTheme" type="button" title="تغيير الخلفية" class="w-9 h-9 rounded-xl bg-white/85 hover:bg-white text-slate-800 shadow flex items-center justify-center text-base font-bold border border-white">
+        🎨
+      </button>
+      <button id="btnSound" type="button" title="الصوت" class="w-9 h-9 rounded-xl bg-white/85 hover:bg-white text-slate-800 shadow flex items-center justify-center text-base font-bold border border-white">
+        🔊
+      </button>
+      <button id="btnOpenSettingsHud" type="button" title="الاهتزاز ومستوى الصعوبة" class="w-9 h-9 rounded-xl bg-white/85 hover:bg-white text-slate-800 shadow flex items-center justify-center text-base font-bold border border-white">
+        ⚙️
+      </button>
+
+    </div>
+  </header>
+
+  <!-- PROGRESS, TIMER & REMAINING TILES BAR -->
+  <div class="w-full max-w-md mx-auto px-3 flex items-center justify-between gap-2 z-10">
+    <button id="btnToggleTimeModeHud" type="button" title="تبديل وضع تحدي الوقت" class="px-2.5 py-0.5 rounded-full bg-black/35 hover:bg-black/50 text-white text-xs font-extrabold flex items-center gap-1 border border-white/25 shadow-xs">
+      <span>⏱️</span>
+      <span id="hudTimerText">وضع حر</span>
+    </button>
+    <div class="flex-1 bg-black/25 rounded-full h-3 p-0.5 overflow-hidden backdrop-blur-xs">
+      <div id="levelProgressBar" class="bg-gradient-to-l from-yellow-300 via-amber-400 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+    </div>
+    <div class="text-xs font-extrabold text-white drop-shadow bg-black/30 px-2.5 py-0.5 rounded-full">
+      المتبقي: <span id="hudRemaining">0</span> بلاطة
+    </div>
+  </div>
+
+  <!-- MAIN BOARD AREA & STASH SHELF -->
+  <main class="relative flex-1 w-full max-w-md mx-auto flex flex-col items-center justify-center px-2 overflow-hidden">
+    <!-- Floating Toast Banner -->
+    <div id="toastBanner" class="pointer-events-none opacity-0 transition-opacity duration-300 absolute top-2 z-40 bg-slate-900/90 text-amber-300 px-4 py-1.5 rounded-full text-xs font-extrabold shadow-lg border border-amber-400/50">
+      رائع! ثلاثية متطابقة ✨
+    </div>
+
+    <!-- Temporary Holding Shelf (Stash for Extra Space power-up) -->
+    <div id="stashContainer" class="hidden mb-1 z-20 bg-amber-950/65 border border-amber-300/60 rounded-2xl px-3 py-1 flex items-center gap-2 shadow-md backdrop-blur-xs">
+      <span class="text-[11px] text-amber-200 font-bold">رف مؤقت:</span>
+      <div id="stashSlots" class="flex items-center gap-1.5"></div>
+    </div>
+
+    <!-- Interactive Multi-Layer Tile Board -->
+    <div id="boardWrapper" class="relative w-full flex-1 flex items-center justify-center">
+      <div id="tileBoard" class="relative" style="width: 340px; height: 340px;"></div>
+    </div>
+
+    <!-- Particle Canvas for Match Celebrations -->
+    <canvas id="fxCanvas" class="pointer-events-none absolute inset-0 w-full h-full z-30"></canvas>
+  </main>
+
+  <!-- BOTTOM DOCK (7 SLOTS) & POWER-UPS -->
+  <footer class="w-full max-w-md mx-auto px-2 pb-3 pt-1 flex flex-col items-center gap-2.5 z-20">
+    <!-- 7-Slot Wooden Tray -->
+    <div class="wood-tray w-full rounded-2xl px-2 py-2.5 flex items-center justify-center gap-1 sm:gap-1.5 relative">
+      <div id="dockContainer" class="flex items-center justify-center gap-1 sm:gap-1.5 w-full">
+        <!-- 7 slots rendered by JS -->
+      </div>
+    </div>
+
+    <!-- 4 Action Power-Up Buttons -->
+    <div class="w-full grid grid-cols-4 gap-2 px-1">
+      <button id="btnUndo" type="button" class="power-btn relative bg-gradient-to-b from-sky-400 to-sky-600 text-white rounded-2xl py-2 px-1 shadow-lg border-2 border-sky-200 flex flex-col items-center justify-center">
+        <span class="text-lg leading-none">↩️</span>
+        <span class="text-[11px] font-extrabold mt-0.5">تراجع</span>
+        <span id="badgeUndo" class="absolute -top-1.5 -left-1 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 rounded-full border border-white">3</span>
+      </button>
+
+      <button id="btnHint" type="button" class="power-btn relative bg-gradient-to-b from-amber-400 to-amber-600 text-white rounded-2xl py-2 px-1 shadow-lg border-2 border-amber-200 flex flex-col items-center justify-center">
+        <span class="text-lg leading-none">💡</span>
+        <span class="text-[11px] font-extrabold mt-0.5">تلميح (3)</span>
+        <span id="badgeHint" class="absolute -top-1.5 -left-1 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 rounded-full border border-white">2</span>
+      </button>
+
+      <button id="btnShuffle" type="button" class="power-btn relative bg-gradient-to-b from-purple-400 to-purple-600 text-white rounded-2xl py-2 px-1 shadow-lg border-2 border-purple-200 flex flex-col items-center justify-center">
+        <span class="text-lg leading-none">🔀</span>
+        <span class="text-[11px] font-extrabold mt-0.5">خلط</span>
+        <span id="badgeShuffle" class="absolute -top-1.5 -left-1 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 rounded-full border border-white">3</span>
+      </button>
+
+      <button id="btnStash" type="button" class="power-btn relative bg-gradient-to-b from-emerald-400 to-emerald-600 text-white rounded-2xl py-2 px-1 shadow-lg border-2 border-emerald-200 flex flex-col items-center justify-center">
+        <span class="text-lg leading-none">📤</span>
+        <span class="text-[11px] font-extrabold mt-0.5">تفريغ 3</span>
+        <span id="badgeStash" class="absolute -top-1.5 -left-1 bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 rounded-full border border-white">2</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- SCREEN 1: ATTRACTIVE MAIN HOME SCREEN -->
+  <div id="homeScreenOverlay" class="fixed inset-0 z-40 flex flex-col justify-between p-4 bg-gradient-to-b from-emerald-900/85 via-teal-950/90 to-slate-950/95 backdrop-blur-md text-white overflow-y-auto">
+    <!-- Top Bar on Home Screen -->
+    <div class="w-full max-w-md mx-auto flex items-center justify-between pt-1">
+      <div class="flex items-center gap-2 bg-amber-950/90 border-2 border-amber-400/80 rounded-2xl px-3 py-1.5 shadow-lg">
+        <span class="text-base">🪙</span>
+        <span id="homeCoins" class="text-sm font-black text-yellow-300">150</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnHomeSound" type="button" class="w-10 h-10 rounded-2xl bg-white/15 hover:bg-white/25 border border-white/30 flex items-center justify-center text-lg shadow" title="الصوت">
+          🔊
+        </button>
+        <button id="btnHomeVibrate" type="button" class="w-10 h-10 rounded-2xl bg-emerald-500/30 hover:bg-emerald-500/45 border border-emerald-300/60 flex items-center justify-center text-lg shadow" title="الاهتزاز عند اللمس">
+          📳
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Center Hero Showcase -->
+    <div class="w-full max-w-md mx-auto flex flex-col items-center text-center my-auto py-4">
+      <!-- Floating 3D Tiles Cluster -->
+      <div class="relative w-64 h-36 mb-3 flex items-center justify-center">
+        <div class="floating-tile w-16 h-20 rounded-2xl bg-gradient-to-b from-white to-amber-50 border-2 border-amber-200 shadow-2xl flex items-center justify-center text-4xl -rotate-12 -mr-3 z-10" style="box-shadow: 0 7px 0 #cbb389, 0 12px 20px rgba(0,0,0,0.4);">
+          🍎
+        </div>
+        <div class="floating-tile w-20 h-24 rounded-2xl bg-gradient-to-b from-white to-amber-50 border-2 border-amber-300 shadow-2xl flex items-center justify-center text-5xl z-20 -mt-4" style="animation-delay: 0.4s; box-shadow: 0 8px 0 #cbb389, 0 15px 25px rgba(0,0,0,0.45);">
+          🍉
+        </div>
+        <div class="floating-tile w-16 h-20 rounded-2xl bg-gradient-to-b from-white to-amber-50 border-2 border-amber-200 shadow-2xl flex items-center justify-center text-4xl rotate-12 -ml-3 z-10" style="animation-delay: 0.8s; box-shadow: 0 7px 0 #cbb389, 0 12px 20px rgba(0,0,0,0.4);">
+          🍌
+        </div>
+        <span class="absolute -top-1 right-6 text-2xl animate-bounce">✨</span>
+        <span class="absolute bottom-1 left-6 text-2xl animate-pulse">🌸</span>
+      </div>
+
+      <div class="inline-block bg-amber-400/20 border border-amber-300/50 text-amber-200 text-xs font-extrabold px-3 py-1 rounded-full mb-2">
+        لعبة ألغاز ومطابقة ثلاثية باللمس
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-emerald-300 drop-shadow mb-1">
+        تحدي البلاطات الثلاثية
+      </h1>
+      <p class="text-xs sm:text-sm text-emerald-100/85 font-bold max-w-xs mb-5">
+        اجمع كل 3 بلاطات متشابهة من الطبقات المتعددة قبل امتلاء الشريط الخشبي!
+      </p>
+
+      <!-- Stats Summary Card -->
+      <div class="w-full max-w-xs grid grid-cols-3 gap-2 bg-white/10 border border-white/20 rounded-2xl p-3 mb-6 backdrop-blur-xs">
+        <div>
+          <div class="text-[11px] text-emerald-200 font-bold">أعلى مرحلة</div>
+          <div id="homeMaxLevel" class="text-lg font-black text-white">1</div>
+        </div>
+        <div class="border-x border-white/15">
+          <div class="text-[11px] text-amber-200 font-bold">النجوم</div>
+          <div id="homeTotalStars" class="text-lg font-black text-amber-300">0 ⭐</div>
+        </div>
+        <div>
+          <div class="text-[11px] text-sky-200 font-bold">النقاط</div>
+          <div id="homeScore" class="text-lg font-black text-sky-200">0</div>
+        </div>
+      </div>
+
+      <!-- Difficulty Selector Bar on Home Screen -->
+      <div class="w-full max-w-xs bg-white/10 border border-white/20 rounded-2xl p-1.5 mb-3 backdrop-blur-xs">
+        <div class="text-[11px] text-amber-200 font-extrabold mb-1">اختر مستوى الصعوبة:</div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button id="btnHomeDiffEasy" type="button" class="py-1.5 rounded-xl text-xs font-black bg-emerald-500 text-white shadow">
+            🌱 سهل
+          </button>
+          <button id="btnHomeDiffMedium" type="button" class="py-1.5 rounded-xl text-xs font-black bg-white/10 text-white/80 hover:bg-white/20">
+            ⚡ متوسط
+          </button>
+          <button id="btnHomeDiffHard" type="button" class="py-1.5 rounded-xl text-xs font-black bg-white/10 text-white/80 hover:bg-white/20">
+            🔥 صعب
+          </button>
+        </div>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="w-full max-w-xs flex flex-col gap-3">
+        <button id="btnStartPlayNow" type="button" class="power-btn w-full py-4 rounded-2xl bg-gradient-to-b from-emerald-400 via-emerald-500 to-green-600 text-white font-black text-lg shadow-xl border-2 border-emerald-200 flex items-center justify-center gap-2">
+          <span>▶️</span>
+          <span>العب المرحلة <span id="homeCurrentLevelBtn">1</span></span>
+        </button>
+
+        <button id="btnOpenMapScreen" type="button" class="power-btn w-full py-3.5 rounded-2xl bg-gradient-to-b from-amber-400 to-amber-600 text-slate-950 font-black text-base shadow-xl border-2 border-yellow-200 flex items-center justify-center gap-2">
+          <span>🗺️</span>
+          <span>خريطة المراحل التفاعلية</span>
+        </button>
+
+        <button id="btnStartTimeChallenge" type="button" class="power-btn w-full py-3 rounded-2xl bg-gradient-to-b from-rose-500 to-orange-600 text-white font-black text-base shadow-xl border-2 border-rose-200 flex items-center justify-center gap-2">
+          <span>⚡</span>
+          <span>تحدي الوقت السريع (عملات مضاعفة x2)</span>
+        </button>
+
+        <div class="grid grid-cols-2 gap-2.5 w-full">
+          <button id="btnOpenShopHome" type="button" class="power-btn w-full py-3 rounded-2xl bg-gradient-to-b from-purple-500 to-indigo-700 text-white font-black text-xs sm:text-sm shadow-xl border-2 border-purple-300 flex items-center justify-center gap-1">
+            <span>🛒</span>
+            <span>متجر البلاطات والثيمات</span>
+          </button>
+          <button id="btnOpenWheelHome" type="button" class="power-btn w-full py-3 rounded-2xl bg-gradient-to-b from-pink-500 to-rose-600 text-white font-black text-xs sm:text-sm shadow-xl border-2 border-pink-300 flex items-center justify-center gap-1.5">
+            <span>🎡</span>
+            <span>عجلة الحظ</span>
+          </button>
+        </div>
+
+        <button id="btnOpenQuestsHome" type="button" class="power-btn relative w-full py-3 rounded-2xl bg-gradient-to-b from-indigo-500 to-blue-700 text-white font-black text-sm shadow-xl border-2 border-indigo-300 flex items-center justify-center gap-2">
+          <span>🏅</span>
+          <span>المهام والإنجازات (جوائز عملات)</span>
+          <span id="questsHomeBadge" class="hidden bg-rose-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full border border-white">جائزة جاهزة!</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Bottom Footer Info -->
+    <div class="w-full max-w-md mx-auto text-center pb-1 text-[11px] text-emerald-200/70 font-bold">
+      تعمل بالكامل باللمس وبدون إنترنت • Triple Tile Match
+    </div>
+  </div>
+
+  <!-- SCREEN 2: INTERACTIVE LEVEL MAP SCREEN -->
+  <div id="mapScreenOverlay" class="hidden fixed inset-0 z-40 flex flex-col justify-between bg-gradient-to-b from-sky-900 via-emerald-900 to-amber-950 text-white overflow-hidden">
+    <!-- Map Top Header -->
+    <div class="w-full max-w-md mx-auto px-4 pt-3 pb-2 flex items-center justify-between border-b border-white/15 bg-slate-950/40 backdrop-blur-sm z-20">
+      <button id="btnBackToHomeFromMap" type="button" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-xs font-extrabold flex items-center gap-1">
+        <span>🏠</span>
+        <span>الرئيسية</span>
+      </button>
+      <div class="text-center">
+        <h2 class="text-base font-black text-amber-300">🗺️ خريطة المغامرة</h2>
+        <p class="text-[10px] text-emerald-200 font-bold">اختر أي مرحلة مفتوحة للعب</p>
+      </div>
+      <div class="flex items-center gap-1 bg-amber-950/90 border border-amber-400/70 rounded-xl px-2.5 py-1 text-xs font-black text-yellow-300">
+        <span>🪙</span>
+        <span id="mapCoins">150</span>
+      </div>
+    </div>
+
+    <!-- Scrollable Winding Adventure Map -->
+    <div id="mapScrollArea" class="map-scroll-container flex-1 w-full max-w-md mx-auto overflow-y-auto px-4 py-6 relative">
+      <!-- Zone Legend Banner -->
+      <div class="grid grid-cols-4 gap-1.5 mb-5 text-center text-[10px] font-extrabold">
+        <div class="bg-emerald-800/70 border border-emerald-400/40 rounded-xl py-1 px-1">🌿 الحديقة (1-4)</div>
+        <div class="bg-sky-800/70 border border-sky-400/40 rounded-xl py-1 px-1">🌊 المحيط (5-8)</div>
+        <div class="bg-orange-800/70 border border-orange-400/40 rounded-xl py-1 px-1">🌅 الغروب (9-12)</div>
+        <div class="bg-indigo-900/70 border border-indigo-400/40 rounded-xl py-1 px-1">🌌 القلعة (13+)</div>
+      </div>
+
+      <!-- Winding Nodes Container -->
+      <div id="interactiveMapNodes" class="relative flex flex-col items-center gap-5 pb-6">
+        <!-- Populated dynamically by renderInteractiveMap() -->
+      </div>
+    </div>
+
+    <!-- Map Footer Bar -->
+    <div class="w-full max-w-md mx-auto px-4 py-3 bg-slate-950/65 backdrop-blur-sm border-t border-white/15 flex items-center justify-between gap-3 z-20">
+      <div class="text-xs font-bold text-emerald-200">
+        المرحلة الحالية: <span id="mapFooterCurrentLvl" class="text-amber-300 font-black">1</span>
+      </div>
+      <button id="btnResumeFromMap" type="button" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-black text-xs shadow-lg border border-emerald-300">
+        ▶️ متابعة اللعب الآن
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: WIN / LOSS -->
+  <div id="statusModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 text-center shadow-2xl border-4 border-amber-400">
+      <div id="modalEmoji" class="text-5xl mb-2">🎉</div>
+      <h2 id="modalTitle" class="text-2xl font-black text-slate-800 mb-1">أحسنت! اكتملت المرحلة</h2>
+      <p id="modalDesc" class="text-sm text-slate-600 mb-4 font-bold">جمعت كل البلاطات وحصلت على +50 عملة ذهبية!</p>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-5 flex justify-around text-xs font-extrabold text-amber-900">
+        <div>النقاط: <span id="modalScore" class="text-base font-black">0</span></div>
+        <div>المرحلة: <span id="modalLevelNum" class="text-base font-black">1</span></div>
+      </div>
+
+      <div class="flex flex-col gap-2.5">
+        <button id="btnModalPrimary" type="button" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black text-base shadow-lg">
+          المرحلة التالية ⬅️
+        </button>
+        <button id="btnModalRevive" type="button" class="hidden w-full py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-slate-950 font-black text-sm shadow-md">
+          🪙 إكمال اللعب وتفريغ 3 بلاطات (30 عملة)
+        </button>
+        <button id="btnModalRetry" type="button" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-sm">
+          إعادة المرحلة 🔄
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LEVEL SELECTOR -->
+  <div id="levelsModal" class="hidden fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border-4 border-emerald-500">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-lg font-black text-slate-800">اختر المرحلة 🏆</h3>
+        <button id="btnCloseLevels" type="button" class="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold">✕</button>
+      </div>
+      <p class="text-xs text-slate-500 font-bold mb-3">كل مرحلة بتزيد فيها الطبقات وعدد أشكال البلاطات:</p>
+      <div id="levelsGrid" class="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto p-1"></div>
+      <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
+        <button id="btnResetSave" type="button" class="text-xs text-rose-600 font-bold hover:underline">إعادة ضبط التقدم</button>
+        <button id="btnRestartCurrent" type="button" class="px-4 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">إعادة المرحلة الحالية</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: IN-GAME SHOP (TILE PACKS & THEMES) -->
+  <div id="shopModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl border-4 border-amber-400 flex flex-col max-h-[90vh]">
+      <!-- Shop Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🛒</span>
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 leading-tight">متجر البلاطات والثيمات</h3>
+            <p class="text-[11px] text-slate-500 font-bold">خصص أشكال البلاطات وخلفية اللعب بالعملات</p>
+          </div>
+        </div>
+        <button id="btnCloseShop" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">✕</button>
+      </div>
+
+      <!-- Balance & Free Bonus Bar -->
+      <div class="my-2.5 bg-amber-50 border border-amber-200 rounded-2xl px-3 py-2 flex items-center justify-between">
+        <div class="flex items-center gap-1.5 text-sm font-black text-amber-900">
+          <span>رصيدك:</span>
+          <span class="text-base">🪙</span>
+          <span id="shopCoinsDisplay" class="text-base text-amber-700">150</span>
+        </div>
+        <button id="btnClaimFreeCoins" type="button" class="px-3 py-1 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-950 text-xs font-black shadow-sm">
+          🎁 +100 عملة هدية
+        </button>
+      </div>
+
+      <!-- Shop Tabs -->
+      <div class="grid grid-cols-2 gap-2 mb-3 bg-slate-100 p-1 rounded-2xl">
+        <button id="tabBtnPacks" type="button" class="py-2 rounded-xl text-xs font-black bg-emerald-600 text-white shadow">
+          🀄 مجموعات البلاطات (4)
+        </button>
+        <button id="tabBtnThemes" type="button" class="py-2 rounded-xl text-xs font-black text-slate-600 hover:text-slate-900">
+          🎨 خلفيات اللوحة (6)
+        </button>
+      </div>
+
+      <!-- Shop Items List -->
+      <div id="shopItemsContainer" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        <!-- Rendered dynamically by renderShopItems() -->
+      </div>
+
+      <!-- Shop Footer -->
+      <div class="mt-3 pt-2.5 border-t border-slate-100 flex justify-end">
+        <button id="btnCloseShopBottom" type="button" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs">
+          إغلاق والعودة للعب
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: LUCKY WHEEL & DAILY REWARD -->
+  <div id="wheelModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border-4 border-pink-500 text-center flex flex-col items-center">
+      <div class="w-full flex items-center justify-between mb-2">
+        <div class="flex items-center gap-1.5">
+          <span class="text-2xl">🎡</span>
+          <h3 class="text-lg font-black text-slate-800">عجلة الحظ والمكافأة</h3>
+        </div>
+        <button id="btnCloseWheel" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">✕</button>
+      </div>
+
+      <!-- Daily Reward Chest Banner -->
+      <div class="w-full bg-gradient-to-r from-amber-100 to-yellow-50 border-2 border-amber-300 rounded-2xl p-2.5 mb-3 flex items-center justify-between">
+        <div class="text-right">
+          <div class="text-xs font-black text-amber-950">🎁 صندوق المكافأة اليومية</div>
+          <div id="dailyRewardStatusText" class="text-[11px] text-amber-800 font-bold">احصل على +120 عملة ذهبية مجاناً!</div>
+        </div>
+        <button id="btnClaimDailyChest" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow">
+          استلام +120 🪙
+        </button>
+      </div>
+
+      <!-- Spinning Wheel Graphic -->
+      <div class="relative w-56 h-56 my-2 flex items-center justify-center">
+        <!-- Pointer Arrow at Top -->
+        <div class="absolute -top-3 z-20 text-3xl drop-shadow-md">🔻</div>
+
+        <!-- Rotating Disc -->
+        <div id="wheelDisc" class="w-52 h-52 rounded-full border-8 border-amber-400 shadow-2xl relative overflow-hidden flex items-center justify-center"
+             style="background: conic-gradient(#f43f5e 0deg 45deg, #f59e0b 45deg 90deg, #10b981 90deg 135deg, #3b82f6 135deg 180deg, #8b5cf6 180deg 225deg, #ec4899 225deg 270deg, #14b8a6 270deg 315deg, #eab308 315deg 360deg);">
+          <div class="absolute inset-2 rounded-full border-2 border-white/40 pointer-events-none"></div>
+          <!-- Center Cap -->
+          <div class="w-14 h-14 rounded-full bg-white border-4 border-amber-400 shadow-lg z-10 flex items-center justify-center text-2xl">
+            🎯
+          </div>
+        </div>
+      </div>
+
+      <div id="wheelPrizeResult" class="min-h-6 text-sm font-black text-pink-600 my-1">
+        لف العجلة واربح عملات أو قدرات مساعدة!
+      </div>
+
+      <div class="w-full flex flex-col gap-2 mt-2">
+        <button id="btnSpinWheelNow" type="button" class="power-btn w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-orange-500 text-white font-black text-base shadow-lg border-2 border-pink-200">
+          🎰 لف العجلة الآن (<span id="wheelSpinsLeftBadge">3 لفات مجانية</span>)
+        </button>
+        <button id="btnCloseWheelBottom" type="button" class="w-full py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs">
+          العودة للعبة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: QUESTS & ACHIEVEMENTS -->
+  <div id="questsModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl border-4 border-indigo-500 flex flex-col max-h-[90vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🏅</span>
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 leading-tight">المهام والإنجازات</h3>
+            <p class="text-[11px] text-slate-500 font-bold">أكمل التحديات واستلم مكافآت العملات الذهبية</p>
+          </div>
+        </div>
+        <button id="btnCloseQuests" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">✕</button>
+      </div>
+
+      <!-- Summary Bar -->
+      <div class="my-2.5 bg-indigo-50 border border-indigo-200 rounded-2xl px-3 py-2 flex items-center justify-between">
+        <div class="text-xs font-extrabold text-indigo-950">
+          الإنجازات المكتملة: <span id="questsCompletedCount" class="font-black text-indigo-700">0/6</span>
+        </div>
+        <div class="flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-100 px-2.5 py-1 rounded-xl border border-amber-300">
+          <span>🪙</span>
+          <span id="questsCoinsDisplay">150</span>
+        </div>
+      </div>
+
+      <!-- Quests List Container -->
+      <div id="questsListContainer" class="flex-1 overflow-y-auto space-y-2.5 pr-1">
+        <!-- Rendered dynamically by renderQuestsModal() -->
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+        <button id="btnCloseQuestsBottom" type="button" class="w-full py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs">
+          إغلاق والعودة للعب
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SETTINGS (VIBRATION & DIFFICULTY) -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-5 shadow-2xl border-4 border-emerald-500 text-right">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">⚙️</span>
+          <h3 class="text-lg font-black text-slate-800">إعدادات اللعب والصعوبة</h3>
+        </div>
+        <button id="btnCloseSettings" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">✕</button>
+      </div>
+
+      <!-- Vibration Toggle Row -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-black text-slate-800">📳 اهتزاز الهاتف (Vibration)</div>
+          <div class="text-[11px] text-slate-500 font-bold">اهتزاز تفاعلي عند لمس ومطابقة البلاطات</div>
+        </div>
+        <button id="btnToggleVibrationModal" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black shadow">
+          مُفعّل ✅
+        </button>
+      </div>
+
+      <!-- Sound Toggle Row -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-4 flex items-center justify-between">
+        <div>
+          <div class="text-sm font-black text-slate-800">🔊 المؤثرات الصوتية</div>
+          <div class="text-[11px] text-slate-500 font-bold">أصوات لمس البلاطات والمطابقة الثلاثية</div>
+        </div>
+        <button id="btnToggleSoundModal" type="button" class="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black shadow">
+          مُفعّل ✅
+        </button>
+      </div>
+
+      <!-- Difficulty Selection in Modal -->
+      <div class="mb-4">
+        <div class="text-xs font-black text-slate-700 mb-2">🎯 مستوى صعوبة المراحل:</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button id="btnModalDiffEasy" type="button" class="p-2.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-center">
+            <div class="text-lg">🌱</div>
+            <div class="text-xs font-black text-slate-800">سهل</div>
+            <div class="text-[10px] text-slate-500 font-bold">+50 🪙</div>
+          </button>
+          <button id="btnModalDiffMedium" type="button" class="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-center">
+            <div class="text-lg">⚡</div>
+            <div class="text-xs font-black text-slate-800">متوسط</div>
+            <div class="text-[10px] text-slate-500 font-bold">+75 🪙</div>
+          </button>
+          <button id="btnModalDiffHard" type="button" class="p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-center">
+            <div class="text-lg">🔥</div>
+            <div class="text-xs font-black text-slate-800">صعب</div>
+            <div class="text-[10px] text-slate-500 font-bold">+110 🪙</div>
+          </button>
+        </div>
+        <p id="difficultyDescText" class="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-2 mt-2 font-bold text-center">
+          المستوى المتوسط: توازن مثالي في عدد الطبقات وتنوع البلاطات.
+        </p>
+      </div>
+
+      <button id="btnCloseSettingsBottom" type="button" class="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow">
+        حفظ والعودة للعب
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL: APK & DOWNLOAD GUIDE WITH CUSTOM TITLE & ICON -->
+  <div id="apkModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-4 sm:p-5 shadow-2xl border-4 border-emerald-500 text-right flex flex-col max-h-[92vh]">
+      <!-- Header -->
+      <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">📲</span>
+          <div>
+            <h3 class="text-base sm:text-lg font-black text-slate-800 leading-tight">تخصيص اللعبة وتحويلها إلى APK</h3>
+            <p class="text-[11px] text-slate-500 font-bold">حدد اسم لعبتك وأيقونتها قبل تصدير ملف index.html</p>
+          </div>
+        </div>
+        <button id="btnCloseApk" type="button" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold">✕</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-3 py-3 pr-1 text-xs font-bold text-slate-700">
+        <!-- Live App Identity Card -->
+        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-2xl p-3 flex items-center gap-3">
+          <div id="apkIconPreview" class="w-14 h-14 rounded-2xl bg-gradient-to-b from-white to-amber-100 border-2 border-amber-300 shadow-md flex items-center justify-center text-3xl shrink-0">
+            🧩
+          </div>
+          <div class="flex-1 min-w-0">
+            <div id="apkLiveTitlePreview" class="text-sm font-black text-slate-900 truncate">تحدي البلاطات الثلاثية</div>
+            <div id="apkLivePackagePreview" class="text-[10px] text-emerald-700 font-bold truncate">com.mygame.tripletile</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">جاهز للتضمين كأيقونة واسم لتطبيق الأندرويد</div>
+          </div>
+        </div>
+
+        <!-- Custom Game Title Input -->
+        <div>
+          <label for="inputCustomGameName" class="block text-xs font-black text-slate-800 mb-1">🏷️ اسم اللعبة في الأندرويد:</label>
+          <input id="inputCustomGameName" type="text" value="تحدي البلاطات الثلاثية" maxlength="32"
+                 class="w-full px-3 py-2 rounded-xl border border-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none text-xs font-bold text-slate-800 bg-slate-50"
+                 placeholder="اكتب اسم لعبتك هنا..." />
+        </div>
+
+        <!-- Custom Icon Selector -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-black text-slate-800">🎨 اختر أيقونة التطبيق (App Icon):</span>
+            <span id="selectedIconLabel" class="text-[11px] text-emerald-700 font-extrabold">🧩 لغز البلاطات</span>
+          </div>
+          <div id="apkIconOptionsGrid" class="grid grid-cols-6 gap-1.5 bg-slate-50 p-2 rounded-2xl border border-slate-200">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- 3-Step Simple APK Conversion Guide -->
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-1.5 text-[11px] text-slate-600">
+          <div class="font-black text-slate-800 mb-0.5">🚀 خطوات التحويل لـ APK في دقيقة واحدة من الهاتف:</div>
+          <div class="flex items-start gap-1.5">
+            <span class="text-emerald-600 font-black">1.</span>
+            <span>اضغط على الزر الأخضر بالأسفل لتحميل <code class="bg-white px-1 py-0.5 rounded border border-slate-200 text-emerald-700 font-mono font-bold">index.html</code> المُخصص بالاسم والأيقونة.</span>
+          </div>
+          <div class="flex items-start gap-1.5">
+            <span class="text-emerald-600 font-black">2.</span>
+            <span>افتح من متصفح التليفون موقع <a href="https://freewebtoapk.com" target="_blank" class="text-emerald-600 underline font-black">freewebtoapk.com</a> أو <a href="https://liteai.me/html-to-apk" target="_blank" class="text-emerald-600 underline font-black">liteai.me/html-to-apk</a> أو تطبيق <span class="font-black">Sketchware Pro</span>.</span>
+          </div>
+          <div class="flex items-start gap-1.5">
+            <span class="text-emerald-600 font-black">3.</span>
+            <span>ارفع الملف واضغط <b>Build APK</b> لتحميل ملف اللعبة وتثبيته فوراً على هاتفك واللعب أوفلاين!</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mt-2.5 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
+        <button id="btnDownloadHtml" type="button" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-black text-sm shadow-lg border border-emerald-300 flex items-center justify-center gap-2">
+          <span>📥</span>
+          <span>تحميل ملف اللعبة (index.html) للموبايل</span>
+        </button>
+        <button id="btnCloseApkBottom" type="button" class="w-full py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs">
+          العودة للعبة
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. TILE CATALOG (12 Distinct Crisp Items)
+    // ==========================================
+    const TILE_TYPES = [
+      { id: 'apple',      emoji: '🍎', bg: '#fee2e2', ring: '#f87171', label: 'تفاح' },
+      { id: 'watermelon', emoji: '🍉', bg: '#dcfce7', ring: '#4ade80', label: 'بطيخ' },
+      { id: 'banana',     emoji: '🍌', bg: '#fef9c3', ring: '#facc15', label: 'موز' },
+      { id: 'grapes',     emoji: '🍇', bg: '#f3e8ff', ring: '#c084fc', label: 'عنب' },
+      { id: 'strawberry', emoji: '🍓', bg: '#ffe4e6', ring: '#fb7185', label: 'فراولة' },
+      { id: 'avocado',    emoji: '🥑', bg: '#ecfccb', ring: '#a3e635', label: 'أفوكادو' },
+      { id: 'carrot',     emoji: '🥕', bg: '#ffedd5', ring: '#fb923c', label: 'جزر' },
+      { id: 'pizza',      emoji: '🍕', bg: '#fef3c7', ring: '#f59e0b', label: 'بيتزا' },
+      { id: 'donut',      emoji: '🍩', bg: '#fce7f3', ring: '#f472b6', label: 'دونات' },
+      { id: 'croissant',  emoji: '🥐', bg: '#fef3c7', ring: '#d97706', label: 'كرواسون' },
+      { id: 'blossom',    emoji: '🌸', bg: '#fae8ff', ring: '#e879f9', label: 'زهرة' },
+      { id: 'star',       emoji: '⭐', bg: '#fef08a', ring: '#eab308', label: 'نجمة' }
+    ];
+
+    const TILE_PACKS = {
+      fruits: {
+        id: 'fruits',
+        name: 'الفواكه والمخبوزات',
+        desc: 'المجموعة الكلاسيكية الملونة والواضحة',
+        price: 0,
+        preview: '🍎 🍉 🍌 🍩 🌸',
+        items: [
+          { id: 'item_0',  emoji: '🍎', bg: '#fee2e2', ring: '#f87171', label: 'تفاح' },
+          { id: 'item_1',  emoji: '🍉', bg: '#dcfce7', ring: '#4ade80', label: 'بطيخ' },
+          { id: 'item_2',  emoji: '🍌', bg: '#fef9c3', ring: '#facc15', label: 'موز' },
+          { id: 'item_3',  emoji: '🍇', bg: '#f3e8ff', ring: '#c084fc', label: 'عنب' },
+          { id: 'item_4',  emoji: '🍓', bg: '#ffe4e6', ring: '#fb7185', label: 'فراولة' },
+          { id: 'item_5',  emoji: '🥑', bg: '#ecfccb', ring: '#a3e635', label: 'أفوكادو' },
+          { id: 'item_6',  emoji: '🥕', bg: '#ffedd5', ring: '#fb923c', label: 'جزر' },
+          { id: 'item_7',  emoji: '🍕', bg: '#fef3c7', ring: '#f59e0b', label: 'بيتزا' },
+          { id: 'item_8',  emoji: '🍩', bg: '#fce7f3', ring: '#f472b6', label: 'دونات' },
+          { id: 'item_9',  emoji: '🥐', bg: '#fef3c7', ring: '#d97706', label: 'كرواسون' },
+          { id: 'item_10', emoji: '🌸', bg: '#fae8ff', ring: '#e879f9', label: 'زهرة' },
+          { id: 'item_11', emoji: '⭐', bg: '#fef08a', ring: '#eab308', label: 'نجمة' }
+        ]
+      },
+      animals: {
+        id: 'animals',
+        name: 'الحيوانات اللطيفة',
+        desc: 'باندا، ثعلب، أسد، وكائنات الغابة المرحة',
+        price: 80,
+        preview: '🐼 🦊 🦁 🐸 🦄',
+        items: [
+          { id: 'item_0',  emoji: '🐼', bg: '#f1f5f9', ring: '#64748b', label: 'باندا' },
+          { id: 'item_1',  emoji: '🦊', bg: '#ffedd5', ring: '#f97316', label: 'ثعلب' },
+          { id: 'item_2',  emoji: '🦁', bg: '#fef3c7', ring: '#eab308', label: 'أسد' },
+          { id: 'item_3',  emoji: '🐸', bg: '#dcfce7', ring: '#22c55e', label: 'ضفدع' },
+          { id: 'item_4',  emoji: '🐨', bg: '#e2e8f0', ring: '#94a3b8', label: 'كوالا' },
+          { id: 'item_5',  emoji: '🐯', bg: '#ffedd5', ring: '#fb923c', label: 'نمر' },
+          { id: 'item_6',  emoji: '🐰', bg: '#fce7f3', ring: '#f472b6', label: 'أرنب' },
+          { id: 'item_7',  emoji: '🐙', bg: '#ffe4e6', ring: '#fb7185', label: 'أخطبوط' },
+          { id: 'item_8',  emoji: '🦋', bg: '#e0f2fe', ring: '#38bdf8', label: 'فراشة' },
+          { id: 'item_9',  emoji: '🐬', bg: '#cffafe', ring: '#06b6d4', label: 'دولفين' },
+          { id: 'item_10', emoji: '🦄', bg: '#fae8ff', ring: '#e879f9', label: 'يونيكورن' },
+          { id: 'item_11', emoji: '🐝', bg: '#fef9c3', ring: '#eab308', label: 'نحلة' }
+        ]
+      },
+      sweets: {
+        id: 'sweets',
+        name: 'عالم الحلويات والآيس كريم',
+        desc: 'كب كيك، آيس كريم، شوكولاتة وحلوى ملونة',
+        price: 100,
+        preview: '🧁 🍦 🍭 🍫 🍰',
+        items: [
+          { id: 'item_0',  emoji: '🧁', bg: '#fce7f3', ring: '#f472b6', label: 'كب كيك' },
+          { id: 'item_1',  emoji: '🍰', bg: '#ffe4e6', ring: '#fb7185', label: 'كعكة' },
+          { id: 'item_2',  emoji: '🍦', bg: '#fef9c3', ring: '#facc15', label: 'آيس كريم' },
+          { id: 'item_3',  emoji: '🍭', bg: '#fae8ff', ring: '#e879f9', label: 'مصاصة' },
+          { id: 'item_4',  emoji: '🍫', bg: '#ffedd5', ring: '#b45309', label: 'شوكولاتة' },
+          { id: 'item_5',  emoji: '🍪', bg: '#fef3c7', ring: '#d97706', label: 'كوكيز' },
+          { id: 'item_6',  emoji: '🍮', bg: '#fef08a', ring: '#ca8a04', label: 'كريم كراميل' },
+          { id: 'item_7',  emoji: '🍧', bg: '#e0f2fe', ring: '#38bdf8', label: 'مثلجات' },
+          { id: 'item_8',  emoji: '🍬', bg: '#f3e8ff', ring: '#c084fc', label: 'حلوى' },
+          { id: 'item_9',  emoji: '🧋', bg: '#ffedd5', ring: '#fb923c', label: 'بوبا' },
+          { id: 'item_10', emoji: '🧇', bg: '#fef3c7', ring: '#f59e0b', label: 'وافل' },
+          { id: 'item_11', emoji: '🥞', bg: '#ffedd5', ring: '#ea580c', label: 'بان كيك' }
+        ]
+      },
+      gems: {
+        id: 'gems',
+        name: 'الجواهر والكنوز الملكية',
+        desc: 'ألماس، تيجان، كرات سحرية وكنوز ذهبية',
+        price: 120,
+        preview: '💎 👑 🔮 🏆 ⚡',
+        items: [
+          { id: 'item_0',  emoji: '💎', bg: '#e0f2fe', ring: '#38bdf8', label: 'ألماسة' },
+          { id: 'item_1',  emoji: '👑', bg: '#fef08a', ring: '#eab308', label: 'تاج' },
+          { id: 'item_2',  emoji: '🔮', bg: '#f3e8ff', ring: '#a855f7', label: 'بلورة' },
+          { id: 'item_3',  emoji: '🪙', bg: '#fef9c3', ring: '#ca8a04', label: 'عملة' },
+          { id: 'item_4',  emoji: '💍', bg: '#fce7f3', ring: '#f472b6', label: 'خاتم' },
+          { id: 'item_5',  emoji: '🏆', bg: '#fef3c7', ring: '#f59e0b', label: 'كأس' },
+          { id: 'item_6',  emoji: '⚡', bg: '#fef08a', ring: '#facc15', label: 'برق' },
+          { id: 'item_7',  emoji: '🔥', bg: '#ffedd5', ring: '#f97316', label: 'شعلة' },
+          { id: 'item_8',  emoji: '🌙', bg: '#e0e7ff', ring: '#818cf8', label: 'هلال' },
+          { id: 'item_9',  emoji: '☄️', bg: '#ffe4e6', ring: '#fb7185', label: 'نيزك' },
+          { id: 'item_10', emoji: '🛡️', bg: '#f1f5f9', ring: '#64748b', label: 'درع' },
+          { id: 'item_11', emoji: '🗝️', bg: '#fef3c7', ring: '#d97706', label: 'مفتاح' }
+        ]
+      }
+    };
+
+    const SHOP_THEMES = [
+      { id: 'theme-meadow', name: 'المرج الأخضر', desc: 'طبيعة هادئة ومريحة للعين', price: 0, previewBg: 'linear-gradient(135deg, #d9f99d, #15803d)' },
+      { id: 'theme-ocean',  name: 'أعماق المحيط', desc: 'تدرجات زرقاء منعشة', price: 50, previewBg: 'linear-gradient(135deg, #bae6fd, #0369a1)' },
+      { id: 'theme-sunset', name: 'شفق الغروب', desc: 'ألوان الغروب الذهبية الدافئة', price: 60, previewBg: 'linear-gradient(135deg, #fde68a, #9a3412)' },
+      { id: 'theme-night',  name: 'ليالي المجرة', desc: 'وضع ليلي هادئ ومميز', price: 80, previewBg: 'linear-gradient(135deg, #312e81, #090d16)' },
+      { id: 'theme-sakura', name: 'حديقة الساكورا', desc: 'زهور الكرز الوردية اليابانية', price: 90, previewBg: 'linear-gradient(135deg, #fce7f3, #831843)' },
+      { id: 'theme-royal',  name: 'القصر الملكي الذهبي', desc: 'خلفية ملكية فاخرة باللون الذهبي', price: 110, previewBg: 'linear-gradient(135deg, #fef08a, #451a03)' }
+    ];
+
+    const THEMES = SHOP_THEMES.map(t => t.id);
+
+    // ==========================================
+    // 2. SYNTHESIZED SOUND ENGINE (Web Audio API)
+    // ==========================================
+    class SoundEffects {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.vibrateEnabled = true;
+      }
+      vibrate(pattern) {
+        if (!this.vibrateEnabled) return;
+        try {
+          if (navigator && typeof navigator.vibrate === 'function') {
+            navigator.vibrate(pattern);
+          }
+        } catch (e) {}
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playTone(freq, type = 'sine', duration = 0.12, delay = 0, gainVal = 0.16) {
+        if (this.muted) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(gainVal, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + duration);
+      }
+      tap() {
+        this.vibrate(14);
+        this.playTone(520, 'triangle', 0.08, 0, 0.2);
+        this.playTone(780, 'sine', 0.06, 0.02, 0.12);
+      }
+      blocked() {
+        this.vibrate([28, 35, 28]);
+        const tray = document.querySelector('.wood-tray');
+        if (tray && this.vibrateEnabled) {
+          tray.classList.remove('haptic-shake');
+          void tray.offsetWidth;
+          tray.classList.add('haptic-shake');
+        }
+        this.playTone(170, 'sawtooth', 0.09, 0, 0.12);
+      }
+      match() {
+        this.vibrate([22, 30, 55]);
+        this.playTone(523.25, 'triangle', 0.14, 0, 0.2);
+        this.playTone(659.25, 'triangle', 0.14, 0.07, 0.2);
+        this.playTone(783.99, 'triangle', 0.22, 0.14, 0.24);
+        this.playTone(1046.5, 'sine', 0.28, 0.20, 0.18);
+      }
+      powerup() {
+        this.vibrate([18, 25, 30]);
+        this.playTone(440, 'sine', 0.1, 0, 0.15);
+        this.playTone(660, 'sine', 0.15, 0.06, 0.18);
+      }
+      win() {
+        this.vibrate([40, 45, 40, 45, 90]);
+        const notes = [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5];
+        notes.forEach((n, idx) => this.playTone(n, 'triangle', 0.18, idx * 0.09, 0.22));
+      }
+      lose() {
+        this.vibrate([60, 50, 80]);
+        const notes = [392, 349.23, 329.63, 329.63];
+        notes.forEach((n, idx) => this.playTone(n, 'sawtooth', 0.2, idx * 0.12, 0.14));
+      }
+    }
+
+    const sfx = new SoundEffects();
+
+    // ==========================================
+    // 3. LEVEL GENERATOR (Multi-Layer Patterns)
+    // ==========================================
+    function generateLevelBlueprint(levelNum) {
+      const positions = [];
+      // Grid coordinates x, y in [0..5], half-step offsets allowed (e.g. 0.5, 1.5)
+      if (levelNum === 1) {
+        // Classic Introductory 2-Layer Garden (24 tiles = 8 triples)
+        for (let r = 1; r <= 4; r++) {
+          for (let c = 1; c <= 4; c++) {
+            positions.push({ x: c, y: r, z: 0 });
+          }
+        }
+        for (let r = 1.5; r <= 3.5; r += 1) {
+          for (let c = 1.5; c <= 3.5; c += 1) {
+            if (positions.length < 24) positions.push({ x: c, y: r, z: 1 });
+          }
+        }
+      } else if (levelNum === 2) {
+        // 3-Layer Pyramid (36 tiles = 12 triples)
+        for (let r = 0.5; r <= 4.5; r += 1) {
+          for (let c = 0.5; c <= 4.5; c += 1) {
+            if ((r === 0.5 || r === 4.5) && (c === 0.5 || c === 4.5)) continue;
+            positions.push({ x: c, y: r, z: 0 });
+          }
+        }
+        for (let r = 1; r <= 4; r += 1) {
+          for (let c = 1; c <= 4; c += 1) {
+            if (positions.length < 33) positions.push({ x: c, y: r, z: 1 });
+          }
+        }
+        positions.push({ x: 2.0, y: 2.5, z: 2 });
+        positions.push({ x: 3.0, y: 2.5, z: 2 });
+        positions.push({ x: 2.5, y: 1.8, z: 3 });
+      } else {
+        // Dynamic Multi-Layer Blueprint for Levels 3+
+        const targetTriples = Math.min(12 + levelNum * 2, 27); // Always divisible by 3
+        const totalTiles = targetTriples * 3;
+        const maxLayer = Math.min(2 + Math.floor(levelNum / 2), 5);
+
+        // Layer 0 base
+        for (let r = 0; r <= 5; r++) {
+          for (let c = 0; c <= 5; c++) {
+            if ((r + c + levelNum) % 5 !== 0 && positions.length < totalTiles) {
+              positions.push({ x: c * 0.9 + 0.25, y: r * 0.9 + 0.25, z: 0 });
+            }
+          }
+        }
+        // Upper layers with half-step offsets so tiles interlock like real Triple Match
+        let z = 1;
+        while (positions.length < totalTiles) {
+          const span = Math.max(2, 5 - (z % 3));
+          const offset = (z % 2 === 1) ? 0.7 : 0.35;
+          for (let r = 0; r < span; r++) {
+            for (let c = 0; c < span; c++) {
+              if (positions.length >= totalTiles) break;
+              positions.push({
+                x: 0.8 + c * 0.95 + (z % 2) * 0.45,
+                y: 0.8 + r * 0.95 + (z % 2) * 0.45,
+                z: (z % maxLayer) + 1
+              });
+            }
+          }
+          z++;
+        }
+      }
+
+      // Ensure exact multiple of 3
+      while (positions.length % 3 !== 0) {
+        positions.pop();
+      }
+
+      const diffMode = (typeof state !== 'undefined' && state.difficulty) ? state.difficulty : 'medium';
+      if (diffMode === 'easy' && positions.length > 18) {
+        // Trim 1-2 triples on easy for a relaxed experience
+        const trimCount = Math.min(6, positions.length - 18);
+        for (let t = 0; t < trimCount; t++) positions.pop();
+      } else if (diffMode === 'hard') {
+        // Add an extra upper-layer triple on hard mode
+        const zHard = Math.min(4, 2 + Math.floor(levelNum / 2));
+        positions.push(
+          { x: 1.5, y: 1.5, z: zHard },
+          { x: 2.5, y: 2.5, z: zHard },
+          { x: 3.5, y: 1.5, z: zHard }
+        );
+      }
+      while (positions.length % 3 !== 0) {
+        positions.pop();
+      }
+
+      const numTriples = positions.length / 3;
+      const activeCatalog = (TILE_PACKS[state.activePackId] || TILE_PACKS.fruits).items;
+      const diffOffset = diffMode === 'easy' ? -1 : (diffMode === 'hard' ? 2 : 0);
+      const distinctTypesCount = Math.max(3, Math.min(4 + levelNum + diffOffset, activeCatalog.length));
+      const selectedTypes = [];
+      for (let i = 0; i < numTriples; i++) {
+        const t = activeCatalog[i % distinctTypesCount];
+        selectedTypes.push(t, t, t);
+      }
+
+      // Shuffle tile types
+      for (let i = selectedTypes.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = selectedTypes[i];
+        selectedTypes[i] = selectedTypes[j];
+        selectedTypes[j] = temp;
+      }
+
+      return positions.map((pos, idx) => ({
+        uid: 'tile_' + idx + '_' + Date.now(),
+        x: pos.x,
+        y: pos.y,
+        z: pos.z,
+        type: selectedTypes[idx],
+        status: 'board' // 'board' | 'dock' | 'stash' | 'cleared'
+      }));
+    }
+
+    // ==========================================
+    // 4. GAME STATE & CORE LOGIC
+    // ==========================================
+    const state = {
+      level: 1,
+      maxUnlockedLevel: 1,
+      score: 0,
+      coins: 150,
+      combo: 0,
+      lastMatchTime: 0,
+      themeIndex: 0,
+      activePackId: 'fruits',
+      ownedPacks: ['fruits'],
+      ownedThemes: ['theme-meadow'],
+      shopTab: 'packs',
+      timeChallengeMode: false,
+      timeLeftSeconds: 90,
+      timerInterval: null,
+      wheelAngle: 0,
+      isSpinningWheel: false,
+      freeSpins: 3,
+      dailyClaimed: false,
+      difficulty: 'medium',
+      customGameTitle: 'تحدي البلاطات الثلاثية',
+      customGameIcon: '🧩',
+      customIconBg: '#fef3c7',
+      stats: {
+        totalMatches: 0,
+        maxCombo: 1,
+        levelsWon: 0,
+        timeModeWins: 0
+      },
+      claimedQuests: [],
+      tiles: [],
+      dock: [],       // max 7 tiles
+      stash: [],      // temporary holding shelf
+      undoHistory: [],
+      powers: {
+        undo: 3,
+        hint: 2,
+        shuffle: 3,
+        stash: 2
+      },
+      isAnimating: false
+    };
+
+    function loadSavedProgress() {
+      try {
+        const raw = localStorage.getItem('triple_tile_save_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          state.level = parsed.level || 1;
+          state.maxUnlockedLevel = parsed.maxUnlockedLevel || 1;
+          state.coins = typeof parsed.coins === 'number' ? parsed.coins : 150;
+          state.score = parsed.score || 0;
+          if (parsed.activePackId && TILE_PACKS[parsed.activePackId]) {
+            state.activePackId = parsed.activePackId;
+          }
+          if (Array.isArray(parsed.ownedPacks) && parsed.ownedPacks.length > 0) {
+            state.ownedPacks = parsed.ownedPacks;
+          }
+          if (Array.isArray(parsed.ownedThemes) && parsed.ownedThemes.length > 0) {
+            state.ownedThemes = parsed.ownedThemes;
+          }
+          if (typeof parsed.themeIndex === 'number' && parsed.themeIndex < THEMES.length) {
+            state.themeIndex = parsed.themeIndex;
+          }
+          if (parsed.stats && typeof parsed.stats === 'object') {
+            state.stats = {
+              totalMatches: parsed.stats.totalMatches || 0,
+              maxCombo: parsed.stats.maxCombo || 1,
+              levelsWon: parsed.stats.levelsWon || 0,
+              timeModeWins: parsed.stats.timeModeWins || 0
+            };
+          }
+          if (Array.isArray(parsed.claimedQuests)) {
+            state.claimedQuests = parsed.claimedQuests;
+          }
+          if (parsed.difficulty && ['easy', 'medium', 'hard'].includes(parsed.difficulty)) {
+            state.difficulty = parsed.difficulty;
+          }
+          if (typeof parsed.vibrateEnabled === 'boolean') {
+            sfx.vibrateEnabled = parsed.vibrateEnabled;
+          }
+        }
+      } catch (e) {
+        // Ignore storage restrictions in sandboxed environments
+      }
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem('triple_tile_save_v1', JSON.stringify({
+          level: state.level,
+          maxUnlockedLevel: state.maxUnlockedLevel,
+          coins: state.coins,
+          score: state.score,
+          activePackId: state.activePackId,
+          ownedPacks: state.ownedPacks,
+          ownedThemes: state.ownedThemes,
+          themeIndex: state.themeIndex,
+          stats: state.stats,
+          claimedQuests: state.claimedQuests,
+          difficulty: state.difficulty,
+          vibrateEnabled: sfx.vibrateEnabled
+        }));
+      } catch (e) {}
+    }
+
+    // Check if tile A is covered by any tile B on a higher layer still on the board
+    function isTileBlocked(tile) {
+      if (tile.status !== 'board') return false;
+      for (let i = 0; i < state.tiles.length; i++) {
+        const other = state.tiles[i];
+        if (other.status !== 'board' || other.uid === tile.uid) continue;
+        if (other.z > tile.z) {
+          // Overlap threshold (0.82 of tile width/height)
+          if (Math.abs(other.x - tile.x) < 0.82 && Math.abs(other.y - tile.y) < 0.82) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    const WHEEL_PRIZES = [
+      { label: '+75 عملة ذهبية 🪙', type: 'coins', amount: 75 },
+      { label: '+2 تلميح ذكي 💡', type: 'hint', amount: 2 },
+      { label: '+120 عملة ذهبية 🪙', type: 'coins', amount: 120 },
+      { label: '+2 خلط بلاطات 🔀', type: 'shuffle', amount: 2 },
+      { label: 'الجائزة الكبرى +250 عملة 🪙🎉', type: 'coins', amount: 250 },
+      { label: '+2 تفريغ رف 📤', type: 'stash', amount: 2 },
+      { label: '+90 عملة ذهبية 🪙', type: 'coins', amount: 90 },
+      { label: '+3 تراجع ↩️', type: 'undo', amount: 3 }
+    ];
+
+    function stopLevelTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+    }
+
+    function formatSeconds(sec) {
+      const s = Math.max(0, Math.floor(sec));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${String(m).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    function updateTimerUI() {
+      const btn = document.getElementById('btnToggleTimeModeHud');
+      const txt = document.getElementById('hudTimerText');
+      if (!btn || !txt) return;
+      if (!state.timeChallengeMode) {
+        txt.textContent = 'وضع حر';
+        btn.classList.remove('timer-urgent');
+      } else {
+        txt.textContent = formatSeconds(state.timeLeftSeconds);
+        if (state.timeLeftSeconds <= 15) {
+          btn.classList.add('timer-urgent');
+        } else {
+          btn.classList.remove('timer-urgent');
+        }
+      }
+    }
+
+    function startLevelTimerIfEnabled() {
+      stopLevelTimer();
+      if (!state.timeChallengeMode) {
+        updateTimerUI();
+        return;
+      }
+      const diffBonusSec = state.difficulty === 'easy' ? 30 : (state.difficulty === 'hard' ? -15 : 0);
+      state.timeLeftSeconds = Math.max(45, 105 - state.level * 3 + diffBonusSec);
+      updateTimerUI();
+      state.timerInterval = setInterval(() => {
+        // Pause countdown when any overlay/modal is open
+        const anyModalOpen =
+          !document.getElementById('homeScreenOverlay').classList.contains('hidden') ||
+          !document.getElementById('mapScreenOverlay').classList.contains('hidden') ||
+          !document.getElementById('statusModal').classList.contains('hidden') ||
+          !document.getElementById('levelsModal').classList.contains('hidden') ||
+          !document.getElementById('shopModal').classList.contains('hidden') ||
+          !document.getElementById('wheelModal').classList.contains('hidden') ||
+          !document.getElementById('questsModal').classList.contains('hidden') ||
+          !document.getElementById('settingsModal').classList.contains('hidden') ||
+          false;
+        if (anyModalOpen) return;
+
+        state.timeLeftSeconds--;
+        updateTimerUI();
+        if (state.timeLeftSeconds <= 0) {
+          stopLevelTimer();
+          sfx.lose();
+          openStatusModal('timeout');
+        }
+      }, 1000);
+    }
+
+    function startLevel(lvl) {
+      state.level = lvl;
+      if (lvl > state.maxUnlockedLevel) {
+        state.maxUnlockedLevel = lvl;
+      }
+      state.tiles = generateLevelBlueprint(lvl);
+      state.dock = [];
+      state.stash = [];
+      state.undoHistory = [];
+      state.combo = 0;
+      state.powers = { undo: 3, hint: 2, shuffle: 3, stash: 2 };
+      state.isAnimating = false;
+      clearHintHighlights();
+      startLevelTimerIfEnabled();
+      saveProgress();
+      renderAll();
+      showToast(state.timeChallengeMode ? `⚡ تحدي الوقت للمرحلة ${lvl} بدأ! (+4 ثوانٍ لكل مطابقة)` : `المرحلة ${lvl} - طابق 3 بلاطات متشابهة!`);
+    }
+
+    // Pick a tile from the board or stash into the 7-slot dock
+    function pickTile(tileUid) {
+      if (state.isAnimating) return;
+      const tile = state.tiles.find(t => t.uid === tileUid);
+      if (!tile) return;
+
+      if (tile.status === 'board' && isTileBlocked(tile)) {
+        sfx.blocked();
+        return;
+      }
+      if (tile.status !== 'board' && tile.status !== 'stash') return;
+      if (state.dock.length >= 7) {
+        sfx.blocked();
+        return;
+      }
+
+      sfx.tap();
+      clearHintHighlights();
+
+      const prevStatus = tile.status;
+      if (prevStatus === 'stash') {
+        state.stash = state.stash.filter(t => t.uid !== tile.uid);
+      }
+
+      tile.status = 'dock';
+      state.undoHistory.push({ uid: tile.uid, fromStatus: prevStatus });
+
+      // Insert next to identical tiles in the dock (authentic Triple Tile Match grouping)
+      let insertIdx = state.dock.length;
+      for (let i = state.dock.length - 1; i >= 0; i--) {
+        if (state.dock[i].type.id === tile.type.id) {
+          insertIdx = i + 1;
+          break;
+        }
+      }
+      state.dock.splice(insertIdx, 0, tile);
+
+      renderAll();
+      checkDockMatches();
+    }
+
+    function checkDockMatches() {
+      // Count frequencies by type id in dock
+      const counts = {};
+      state.dock.forEach(t => {
+        counts[t.type.id] = (counts[t.type.id] || 0) + 1;
+      });
+
+      const matchedTypeId = Object.keys(counts).find(id => counts[id] >= 3);
+      if (matchedTypeId) {
+        state.isAnimating = true;
+        const matchedTiles = state.dock.filter(t => t.type.id === matchedTypeId).slice(0, 3);
+        const matchedUids = new Set(matchedTiles.map(t => t.uid));
+
+        // Mark matching animation on dock DOM elements
+        matchedTiles.forEach(t => { t.matching = true; });
+        renderDock();
+
+        const now = Date.now();
+        if (now - state.lastMatchTime < 4500) {
+          state.combo = Math.min(state.combo + 1, 8);
+        } else {
+          state.combo = 1;
+        }
+        state.lastMatchTime = now;
+
+        state.stats.totalMatches = (state.stats.totalMatches || 0) + 1;
+        if (state.combo > (state.stats.maxCombo || 1)) {
+          state.stats.maxCombo = state.combo;
+        }
+        const gainedScore = 30 * state.combo;
+        state.score += gainedScore;
+        state.coins += state.timeChallengeMode ? 4 : 2;
+        if (state.timeChallengeMode) {
+          state.timeLeftSeconds += 4;
+          updateTimerUI();
+        }
+        sfx.match();
+        spawnConfettiBurst();
+
+        setTimeout(() => {
+          state.dock = state.dock.filter(t => !matchedUids.has(t.uid));
+          state.undoHistory = state.undoHistory.filter(h => !matchedUids.has(h.uid));
+          matchedTiles.forEach(t => {
+            t.status = 'cleared';
+            t.matching = false;
+          });
+          state.isAnimating = false;
+          renderAll();
+          checkWinOrLoss();
+        }, 280);
+      } else {
+        checkWinOrLoss();
+      }
+    }
+
+    function checkWinOrLoss() {
+      const remaining = state.tiles.filter(t => t.status !== 'cleared').length;
+      if (remaining === 0) {
+        stopLevelTimer();
+        sfx.win();
+        state.stats.levelsWon = (state.stats.levelsWon || 0) + 1;
+        if (state.timeChallengeMode) {
+          state.stats.timeModeWins = (state.stats.timeModeWins || 0) + 1;
+        }
+        const baseDiffCoins = state.difficulty === 'hard' ? 110 : (state.difficulty === 'medium' ? 75 : 50);
+        const rewardCoins = state.timeChallengeMode ? baseDiffCoins * 2 : baseDiffCoins;
+        state.coins += rewardCoins;
+        state.maxUnlockedLevel = Math.max(state.maxUnlockedLevel, state.level + 1);
+        saveProgress();
+        openStatusModal('win');
+        return;
+      }
+
+      if (state.dock.length >= 7) {
+        sfx.lose();
+        openStatusModal('lose');
+      }
+    }
+
+    // ==========================================
+    // 5. POWER-UPS (Undo, Hint, Shuffle, Stash)
+    // ==========================================
+    function useUndo() {
+      if (state.isAnimating || state.dock.length === 0) return;
+      if (state.powers.undo <= 0) {
+        if (state.coins >= 20) {
+          state.coins -= 20;
+          state.powers.undo += 1;
+        } else {
+          showToast('تحتاج 20 عملة لاستخدام التراجع!');
+          return;
+        }
+      }
+      const lastAction = state.undoHistory.pop();
+      if (!lastAction) return;
+
+      const tileIdx = state.dock.findIndex(t => t.uid === lastAction.uid);
+      if (tileIdx === -1) return;
+
+      const [tile] = state.dock.splice(tileIdx, 1);
+      tile.status = lastAction.fromStatus;
+      if (tile.status === 'stash') {
+        state.stash.push(tile);
+      }
+      state.powers.undo--;
+      sfx.powerup();
+      renderAll();
+    }
+
+    function useHint() {
+      if (state.isAnimating) return;
+      if (state.powers.hint <= 0) {
+        if (state.coins >= 30) {
+          state.coins -= 30;
+          state.powers.hint += 1;
+        } else {
+          showToast('تحتاج 30 عملة لاستخدام التلميح الذكي!');
+          return;
+        }
+      }
+
+      // Choose target type: prioritize a type already in dock, otherwise any active type
+      let targetTypeId = null;
+      if (state.dock.length > 0) {
+        targetTypeId = state.dock[0].type.id;
+      } else {
+        const freeBoardTile = state.tiles.find(t => t.status === 'board' && !isTileBlocked(t));
+        const anyBoardTile = state.tiles.find(t => t.status !== 'cleared');
+        targetTypeId = (freeBoardTile || anyBoardTile)?.type.id;
+      }
+      if (!targetTypeId) return;
+
+      // Collect up to 3 tiles of that type from dock, stash, and board
+      const group = [
+        ...state.dock.filter(t => t.type.id === targetTypeId),
+        ...state.stash.filter(t => t.type.id === targetTypeId),
+        ...state.tiles.filter(t => t.status === 'board' && t.type.id === targetTypeId)
+      ].slice(0, 3);
+
+      if (group.length < 3) return;
+
+      state.powers.hint--;
+      const uids = new Set(group.map(t => t.uid));
+      state.dock = state.dock.filter(t => !uids.has(t.uid));
+      state.stash = state.stash.filter(t => !uids.has(t.uid));
+      state.undoHistory = state.undoHistory.filter(h => !uids.has(h.uid));
+      group.forEach(t => { t.status = 'cleared'; });
+
+      state.score += 45;
+      sfx.match();
+      spawnConfettiBurst();
+      showToast(`تمت مطابقة 3 بلاطات ${group[0].type.emoji} تلقائياً!`);
+      renderAll();
+      checkWinOrLoss();
+    }
+
+    function useShuffle() {
+      if (state.isAnimating) return;
+      const boardTiles = state.tiles.filter(t => t.status === 'board');
+      if (boardTiles.length < 2) return;
+
+      if (state.powers.shuffle <= 0) {
+        if (state.coins >= 25) {
+          state.coins -= 25;
+          state.powers.shuffle += 1;
+        } else {
+          showToast('تحتاج 25 عملة لخلط البلاطات!');
+          return;
+        }
+      }
+
+      const typesPool = boardTiles.map(t => t.type);
+      for (let i = typesPool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = typesPool[i];
+        typesPool[i] = typesPool[j];
+        typesPool[j] = tmp;
+      }
+      boardTiles.forEach((t, idx) => { t.type = typesPool[idx]; });
+      state.powers.shuffle--;
+      sfx.powerup();
+      showToast('تم خلط البلاطات على اللوحة! 🔀');
+      renderAll();
+    }
+
+    function useStash() {
+      if (state.isAnimating || state.dock.length === 0) return;
+      if (state.powers.stash <= 0) {
+        if (state.coins >= 30) {
+          state.coins -= 30;
+          state.powers.stash += 1;
+        } else {
+          showToast('تحتاج 30 عملة لتفريغ 3 بلاطات!');
+          return;
+        }
+      }
+
+      const countToMove = Math.min(3, state.dock.length);
+      const moved = state.dock.splice(0, countToMove);
+      moved.forEach(t => {
+        t.status = 'stash';
+        state.stash.push(t);
+      });
+      state.powers.stash--;
+      sfx.powerup();
+      showToast('تم نقل البلاطات للرف المؤقت! 📤');
+      renderAll();
+    }
+
+    function clearHintHighlights() {
+      document.querySelectorAll('.tile-highlight-hint').forEach(el => {
+        el.classList.remove('tile-highlight-hint');
+      });
+    }
+
+    // ==========================================
+    // 6. UI RENDERING & RESPONSIVE BOARD SCALING
+    // ==========================================
+    function renderBoard() {
+      const boardEl = document.getElementById('tileBoard');
+      const wrapperEl = document.getElementById('boardWrapper');
+      if (!boardEl || !wrapperEl) return;
+
+      const availW = Math.min(wrapperEl.clientWidth - 12, 390);
+      const availH = Math.min(wrapperEl.clientHeight - 12, 390);
+      const boardSize = Math.max(260, Math.min(availW, availH));
+
+      boardEl.style.width = boardSize + 'px';
+      boardEl.style.height = boardSize + 'px';
+
+      const tileW = Math.floor(boardSize / 6.3);
+      const tileH = Math.floor(tileW * 1.12);
+      const stepX = (boardSize - tileW) / 5.4;
+      const stepY = (boardSize - tileH) / 5.4;
+
+      boardEl.innerHTML = '';
+
+      // Sort by layer z ascending, then y ascending so lower layers render behind upper layers
+      const activeBoardTiles = state.tiles
+        .filter(t => t.status === 'board')
+        .sort((a, b) => (a.z - b.z) || (a.y - b.y) || (a.x - b.x));
+
+      activeBoardTiles.forEach(tile => {
+        const blocked = isTileBlocked(tile);
+        const btn = document.createElement('div');
+        btn.className = 'game-tile' + (blocked ? ' tile-blocked' : '');
+        btn.style.width = tileW + 'px';
+        btn.style.height = tileH + 'px';
+
+        // Layer elevation shift gives genuine 3D stack feel
+        const leftPx = Math.round(tile.x * stepX - tile.z * 3);
+        const topPx = Math.round(tile.y * stepY - tile.z * 4);
+        btn.style.left = leftPx + 'px';
+        btn.style.top = topPx + 'px';
+        btn.style.zIndex = String(10 + tile.z * 10);
+
+        // Inner badge + icon
+        const inner = document.createElement('div');
+        inner.className = 'w-[84%] h-[82%] rounded-xl flex items-center justify-center relative';
+        inner.style.backgroundColor = tile.type.bg;
+        inner.style.border = `1.5px solid ${tile.type.ring}`;
+
+        const span = document.createElement('span');
+        span.style.fontSize = Math.max(20, Math.floor(tileW * 0.56)) + 'px';
+        span.textContent = tile.type.emoji;
+        inner.appendChild(span);
+
+        // Layer indicator dot on upper layers
+        if (tile.z > 0) {
+          const layerDot = document.createElement('span');
+          layerDot.className = 'absolute bottom-0.5 right-1 text-[9px] font-black text-slate-400';
+          layerDot.textContent = 'L' + (tile.z + 1);
+          inner.appendChild(layerDot);
+        }
+
+        btn.appendChild(inner);
+
+        if (blocked) {
+          const overlay = document.createElement('div');
+          overlay.className = 'tile-BlockedOverlay';
+          btn.appendChild(overlay);
+        }
+
+        btn.addEventListener('click', () => pickTile(tile.uid));
+        boardEl.appendChild(btn);
+      });
+    }
+
+    function renderDock() {
+      const dockEl = document.getElementById('dockContainer');
+      if (!dockEl) return;
+      dockEl.innerHTML = '';
+
+      for (let i = 0; i < 7; i++) {
+        const slot = document.createElement('div');
+        slot.className = 'dock-slot';
+        if (i === 6 && state.dock.length === 6) {
+          slot.classList.add('border-rose-400', 'bg-rose-950/40');
+        }
+        const tile = state.dock[i];
+        if (tile) {
+          const tileDiv = document.createElement('div');
+          tileDiv.className = 'dock-tile' + (tile.matching ? ' dock-tile-matching' : '');
+          tileDiv.style.backgroundColor = tile.type.bg;
+          const emojiSpan = document.createElement('span');
+          emojiSpan.className = 'text-2xl sm:text-3xl';
+          emojiSpan.textContent = tile.type.emoji;
+          tileDiv.appendChild(emojiSpan);
+          slot.appendChild(tileDiv);
+        }
+        dockEl.appendChild(slot);
+      }
+    }
+
+    function renderStash() {
+      const container = document.getElementById('stashContainer');
+      const slotsEl = document.getElementById('stashSlots');
+      if (!container || !slotsEl) return;
+
+      if (state.stash.length === 0) {
+        container.classList.add('hidden');
+        return;
+      }
+      container.classList.remove('hidden');
+      slotsEl.innerHTML = '';
+
+      state.stash.forEach(tile => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'w-10 h-11 rounded-xl bg-white border-2 border-amber-300 shadow flex items-center justify-center text-xl hover:scale-105 transition-transform';
+        btn.textContent = tile.type.emoji;
+        btn.addEventListener('click', () => pickTile(tile.uid));
+        slotsEl.appendChild(btn);
+      });
+    }
+
+    function renderHUD() {
+      document.getElementById('hudLevel').textContent = state.level;
+      document.getElementById('hudCoins').textContent = state.coins;
+      document.getElementById('hudScore').textContent = state.score;
+
+      const total = state.tiles.length || 1;
+      const cleared = state.tiles.filter(t => t.status === 'cleared').length;
+      const remaining = total - cleared;
+      const pct = Math.round((cleared / total) * 100);
+
+      document.getElementById('hudRemaining').textContent = remaining;
+      document.getElementById('levelProgressBar').style.width = pct + '%';
+
+      const comboBadge = document.getElementById('comboBadge');
+      if (state.combo > 1) {
+        comboBadge.classList.remove('hidden');
+        comboBadge.textContent = 'x' + state.combo;
+      } else {
+        comboBadge.classList.add('hidden');
+      }
+
+      document.getElementById('badgeUndo').textContent = state.powers.undo > 0 ? state.powers.undo : '20🪙';
+      document.getElementById('badgeHint').textContent = state.powers.hint > 0 ? state.powers.hint : '30🪙';
+      document.getElementById('badgeShuffle').textContent = state.powers.shuffle > 0 ? state.powers.shuffle : '25🪙';
+      document.getElementById('badgeStash').textContent = state.powers.stash > 0 ? state.powers.stash : '30🪙';
+
+      document.getElementById('btnUndo').disabled = state.dock.length === 0;
+      document.getElementById('btnStash').disabled = state.dock.length === 0;
+    }
+
+    function updateHomeAndMapStats() {
+      const completedCount = Math.max(0, state.maxUnlockedLevel - 1);
+      const totalStars = completedCount * 3;
+      const hc = document.getElementById('homeCoins');
+      const hm = document.getElementById('homeMaxLevel');
+      const hs = document.getElementById('homeTotalStars');
+      const hsc = document.getElementById('homeScore');
+      const hbtn = document.getElementById('homeCurrentLevelBtn');
+      const mc = document.getElementById('mapCoins');
+      const mfc = document.getElementById('mapFooterCurrentLvl');
+
+      if (hc) hc.textContent = state.coins;
+      if (hm) hm.textContent = state.maxUnlockedLevel;
+      if (hs) hs.textContent = totalStars + ' ⭐';
+      if (hsc) hsc.textContent = state.score;
+      if (hbtn) hbtn.textContent = state.level;
+      if (mc) mc.textContent = state.coins;
+      if (mfc) mfc.textContent = state.level;
+    }
+
+    function getZoneMeta(lvl) {
+      if (lvl <= 4) return { name: '🌿 الحديقة الخضراء', badgeBg: 'bg-emerald-700/80 border-emerald-300', themeIdx: 0 };
+      if (lvl <= 8) return { name: '🌊 شاطئ المحيط', badgeBg: 'bg-sky-700/80 border-sky-300', themeIdx: 1 };
+      if (lvl <= 12) return { name: '🌅 قمم الغروب', badgeBg: 'bg-orange-700/80 border-orange-300', themeIdx: 2 };
+      return { name: '🌌 قلعة النجوم', badgeBg: 'bg-indigo-800/80 border-indigo-300', themeIdx: 3 };
+    }
+
+    function renderInteractiveMap() {
+      const container = document.getElementById('interactiveMapNodes');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const totalNodes = Math.max(15, state.maxUnlockedLevel + 4);
+      // Winding horizontal offsets (in px) to create a serpentine adventure path
+      const offsets = [0, -68, -95, -50, 20, 75, 95, 45];
+
+      for (let lvl = 1; lvl <= totalNodes; lvl++) {
+        const unlocked = lvl <= state.maxUnlockedLevel;
+        const completed = lvl < state.maxUnlockedLevel;
+        const isCurrent = lvl === state.level;
+        const isMaxUnlocked = lvl === state.maxUnlockedLevel;
+        const zone = getZoneMeta(lvl);
+
+        // Show zone divider header at start of each zone
+        if (lvl === 1 || lvl === 5 || lvl === 9 || lvl === 13) {
+          const header = document.createElement('div');
+          header.className = `px-4 py-1 rounded-full text-xs font-black border shadow-md ${zone.badgeBg}`;
+          header.textContent = zone.name;
+          container.appendChild(header);
+        }
+
+        const row = document.createElement('div');
+        row.className = 'relative flex flex-col items-center';
+        const shiftX = offsets[(lvl - 1) % offsets.length];
+        row.style.transform = `translateX(${shiftX}px)`;
+
+        // Connecting dashed trail line to next node
+        if (lvl < totalNodes) {
+          const trail = document.createElement('div');
+          trail.className = completed
+            ? 'w-1.5 h-6 bg-amber-300 rounded-full my-0.5 shadow'
+            : 'w-1 h-6 border-r-2 border-dashed border-white/35 my-0.5';
+          row.appendChild(trail);
+        }
+
+        const nodeBtn = document.createElement('button');
+        nodeBtn.type = 'button';
+        const tileIcon = TILE_TYPES[(lvl - 1) % TILE_TYPES.length].emoji;
+
+        if (isCurrent || isMaxUnlocked) {
+          nodeBtn.className = 'map-node-active relative w-20 h-20 rounded-3xl bg-gradient-to-b from-amber-300 via-amber-400 to-orange-500 text-slate-950 border-4 border-white shadow-2xl flex flex-col items-center justify-center font-black';
+        } else if (unlocked) {
+          nodeBtn.className = 'relative w-16 h-16 rounded-2xl bg-gradient-to-b from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-white border-3 border-emerald-100 shadow-xl flex flex-col items-center justify-center font-black transition-transform active:scale-95';
+        } else {
+          nodeBtn.className = 'relative w-16 h-16 rounded-2xl bg-slate-800/80 text-slate-400 border-2 border-slate-600/80 shadow flex flex-col items-center justify-center font-bold cursor-not-allowed';
+        }
+
+        if (unlocked) {
+          nodeBtn.innerHTML = `
+            <span class="text-lg leading-none">${tileIcon}</span>
+            <span class="text-xs font-black mt-0.5">مرحلة ${lvl}</span>
+            <span class="text-[10px] leading-none mt-0.5">${completed ? '⭐⭐⭐' : '🎯 العب'}</span>
+          `;
+          nodeBtn.addEventListener('click', () => {
+            sfx.tap();
+            // Auto-apply zone theme when selecting from map
+            const body = document.getElementById('appBody');
+            body.classList.remove(THEMES[state.themeIndex]);
+            state.themeIndex = zone.themeIdx;
+            body.classList.add(THEMES[state.themeIndex]);
+
+            document.getElementById('mapScreenOverlay').classList.add('hidden');
+            document.getElementById('homeScreenOverlay').classList.add('hidden');
+            startLevel(lvl);
+          });
+        } else {
+          nodeBtn.innerHTML = `
+            <span class="text-base leading-none">🔒</span>
+            <span class="text-[11px] font-bold mt-0.5">${lvl}</span>
+          `;
+        }
+
+        row.insertBefore(nodeBtn, row.firstChild);
+        container.appendChild(row);
+      }
+    }
+
+    function applyPackToActiveBoard(packId) {
+      const pack = TILE_PACKS[packId];
+      if (!pack) return;
+      state.activePackId = packId;
+      // Remap existing tiles seamlessly by index (item_0..item_11) or fallback
+      state.tiles.forEach(tile => {
+        const oldIdx = parseInt(String(tile.type.id).replace('item_', ''), 10);
+        const mappedIdx = !isNaN(oldIdx)
+          ? (oldIdx % pack.items.length)
+          : Math.max(0, TILE_TYPES.findIndex(x => x.id === tile.type.id));
+        tile.type = pack.items[mappedIdx >= 0 ? mappedIdx : 0];
+      });
+      saveProgress();
+      renderAll();
+    }
+
+    function applyThemeById(themeId) {
+      const idx = THEMES.indexOf(themeId);
+      if (idx === -1) return;
+      const body = document.getElementById('appBody');
+      THEMES.forEach(cls => body.classList.remove(cls));
+      state.themeIndex = idx;
+      body.classList.add(THEMES[state.themeIndex]);
+      saveProgress();
+    }
+
+    function renderShopModal() {
+      const coinsEl = document.getElementById('shopCoinsDisplay');
+      if (coinsEl) coinsEl.textContent = state.coins;
+
+      const tabPacks = document.getElementById('tabBtnPacks');
+      const tabThemes = document.getElementById('tabBtnThemes');
+      if (state.shopTab === 'packs') {
+        tabPacks.className = 'py-2 rounded-xl text-xs font-black bg-emerald-600 text-white shadow';
+        tabThemes.className = 'py-2 rounded-xl text-xs font-black text-slate-600 hover:text-slate-900';
+      } else {
+        tabThemes.className = 'py-2 rounded-xl text-xs font-black bg-emerald-600 text-white shadow';
+        tabPacks.className = 'py-2 rounded-xl text-xs font-black text-slate-600 hover:text-slate-900';
+      }
+
+      const container = document.getElementById('shopItemsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (state.shopTab === 'packs') {
+        Object.values(TILE_PACKS).forEach(pack => {
+          const isOwned = state.ownedPacks.includes(pack.id);
+          const isEquipped = state.activePackId === pack.id;
+
+          const card = document.createElement('div');
+          card.className = isEquipped
+            ? 'p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/70 flex items-center justify-between gap-2 shadow-sm'
+            : 'p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2';
+
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'flex-1';
+          infoDiv.innerHTML = `
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm font-black text-slate-800">${pack.name}</span>
+              ${isEquipped ? '<span class="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-extrabold">مُفعّل</span>' : ''}
+            </div>
+            <div class="text-[11px] text-slate-500 font-bold mb-1">${pack.desc}</div>
+            <div class="text-lg tracking-wider bg-white border border-slate-200 rounded-xl px-2.5 py-1 inline-block shadow-2xs">${pack.preview}</div>
+          `;
+
+          const actionBtn = document.createElement('button');
+          actionBtn.type = 'button';
+          if (isEquipped) {
+            actionBtn.className = 'px-3 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-black text-xs cursor-default';
+            actionBtn.textContent = 'مُستخدم حالياً ✅';
+          } else if (isOwned) {
+            actionBtn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow';
+            actionBtn.textContent = 'تفعيل 🀄';
+            actionBtn.addEventListener('click', () => {
+              sfx.powerup();
+              applyPackToActiveBoard(pack.id);
+              renderShopModal();
+              showToast(`تم تفعيل مجموعة ${pack.name}! 🀄`);
+            });
+          } else {
+            actionBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow border border-amber-300';
+            actionBtn.textContent = `شراء (${pack.price} 🪙)`;
+            actionBtn.addEventListener('click', () => {
+              if (state.coins < pack.price) {
+                sfx.blocked();
+                showToast('عملاتك غير كافية! اضغط على 🎁 +100 عملة هدية بالأعلى');
+                return;
+              }
+              state.coins -= pack.price;
+              state.ownedPacks.push(pack.id);
+              sfx.win();
+              applyPackToActiveBoard(pack.id);
+              renderShopModal();
+              showToast(`مبروك! اشتريت وفعلت مجموعة ${pack.name} 🎉`);
+            });
+          }
+
+          card.appendChild(infoDiv);
+          card.appendChild(actionBtn);
+          container.appendChild(card);
+        });
+      } else {
+        const currentThemeId = THEMES[state.themeIndex];
+        SHOP_THEMES.forEach(theme => {
+          const isOwned = state.ownedThemes.includes(theme.id);
+          const isEquipped = currentThemeId === theme.id;
+
+          const card = document.createElement('div');
+          card.className = isEquipped
+            ? 'p-3 rounded-2xl border-2 border-emerald-500 bg-emerald-50/70 flex items-center justify-between gap-3 shadow-sm'
+            : 'p-3 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-3';
+
+          const previewBox = document.createElement('div');
+          previewBox.className = 'w-12 h-12 rounded-2xl shadow-inner border-2 border-white shrink-0';
+          previewBox.style.background = theme.previewBg;
+
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'flex-1';
+          infoDiv.innerHTML = `
+            <div class="flex items-center gap-1.5">
+              <span class="text-sm font-black text-slate-800">${theme.name}</span>
+              ${isEquipped ? '<span class="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-extrabold">مُفعّل</span>' : ''}
+            </div>
+            <div class="text-[11px] text-slate-500 font-bold">${theme.desc}</div>
+          `;
+
+          const actionBtn = document.createElement('button');
+          actionBtn.type = 'button';
+          if (isEquipped) {
+            actionBtn.className = 'px-3 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-black text-xs cursor-default';
+            actionBtn.textContent = 'مُستخدم ✅';
+          } else if (isOwned) {
+            actionBtn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow';
+            actionBtn.textContent = 'تفعيل 🎨';
+            actionBtn.addEventListener('click', () => {
+              sfx.powerup();
+              applyThemeById(theme.id);
+              renderShopModal();
+              showToast(`تم تفعيل ثيم ${theme.name}! 🎨`);
+            });
+          } else {
+            actionBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow border border-amber-300';
+            actionBtn.textContent = `شراء (${theme.price} 🪙)`;
+            actionBtn.addEventListener('click', () => {
+              if (state.coins < theme.price) {
+                sfx.blocked();
+                showToast('عملاتك غير كافية! اضغط على 🎁 +100 عملة هدية بالأعلى');
+                return;
+              }
+              state.coins -= theme.price;
+              state.ownedThemes.push(theme.id);
+              sfx.win();
+              applyThemeById(theme.id);
+              renderAll();
+              renderShopModal();
+              showToast(`مبروك! اشتريت وفعلت ثيم ${theme.name} 🎉`);
+            });
+          }
+
+          card.appendChild(previewBox);
+          card.appendChild(infoDiv);
+          card.appendChild(actionBtn);
+          container.appendChild(card);
+        });
+      }
+    }
+
+    function openShopModal(defaultTab = 'packs') {
+      state.shopTab = defaultTab;
+      renderShopModal();
+      document.getElementById('shopModal').classList.remove('hidden');
+    }
+
+    const QUEST_DEFINITIONS = [
+      {
+        id: 'q_match_5',
+        icon: '🍎',
+        title: 'جامع البلاطات المبتدئ',
+        desc: 'طابق 5 مجموعات ثلاثية من البلاطات',
+        target: 5,
+        reward: 60,
+        getProgress: () => state.stats.totalMatches || 0
+      },
+      {
+        id: 'q_match_25',
+        icon: '🔥',
+        title: 'خبير المطابقة الثلاثية',
+        desc: 'طابق 25 مجموعة ثلاثية في مختلف المراحل',
+        target: 25,
+        reward: 150,
+        getProgress: () => state.stats.totalMatches || 0
+      },
+      {
+        id: 'q_combo_4',
+        icon: '⚡',
+        title: 'سيد الكومبو السريع',
+        desc: 'حقق كومبو متتالي x4 أو أعلى أثناء اللعب',
+        target: 4,
+        reward: 90,
+        getProgress: () => state.stats.maxCombo || 1
+      },
+      {
+        id: 'q_levels_3',
+        icon: '🏆',
+        title: 'فاتح المراحل',
+        desc: 'أكمل 3 مراحل بنجاح',
+        target: 3,
+        reward: 120,
+        getProgress: () => Math.max(state.stats.levelsWon || 0, state.maxUnlockedLevel - 1)
+      },
+      {
+        id: 'q_time_win',
+        icon: '⏱️',
+        title: 'بطل التحدي السريع',
+        desc: 'افُز بمرحلة في وضع تحدي الوقت السريع',
+        target: 1,
+        reward: 140,
+        getProgress: () => state.stats.timeModeWins || 0
+      },
+      {
+        id: 'q_collector',
+        icon: '👑',
+        title: 'عاشق التخصيص والمقتنيات',
+        desc: 'امتلك 3 عناصر أو أكثر من مجموعات البلاطات والثيمات',
+        target: 3,
+        reward: 110,
+        getProgress: () => (state.ownedPacks.length + state.ownedThemes.length)
+      }
+    ];
+
+    function updateQuestsAlertBadges() {
+      const hasClaimable = QUEST_DEFINITIONS.some(q => {
+        const prog = q.getProgress();
+        return prog >= q.target && !state.claimedQuests.includes(q.id);
+      });
+      const hudDot = document.getElementById('questsHudDot');
+      const homeBadge = document.getElementById('questsHomeBadge');
+      if (hudDot) hudDot.classList.toggle('hidden', !hasClaimable);
+      if (homeBadge) homeBadge.classList.toggle('hidden', !hasClaimable);
+    }
+
+    function renderQuestsModal() {
+      const container = document.getElementById('questsListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const coinsEl = document.getElementById('questsCoinsDisplay');
+      if (coinsEl) coinsEl.textContent = state.coins;
+
+      let completedTotal = 0;
+
+      QUEST_DEFINITIONS.forEach(quest => {
+        const rawProg = quest.getProgress();
+        const current = Math.min(rawProg, quest.target);
+        const pct = Math.round((current / quest.target) * 100);
+        const isDone = rawProg >= quest.target;
+        const isClaimed = state.claimedQuests.includes(quest.id);
+        if (isDone) completedTotal++;
+
+        const card = document.createElement('div');
+        card.className = isClaimed
+          ? 'p-3 rounded-2xl border border-slate-200 bg-slate-50/80 flex items-center justify-between gap-3 opacity-85'
+          : (isDone
+              ? 'p-3 rounded-2xl border-2 border-amber-400 bg-amber-50/70 flex items-center justify-between gap-3 shadow-sm'
+              : 'p-3 rounded-2xl border border-slate-200 bg-white flex items-center justify-between gap-3');
+
+        const left = document.createElement('div');
+        left.className = 'flex items-center gap-2.5 flex-1';
+        left.innerHTML = `
+          <div class="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-2xl shrink-0">
+            ${quest.icon}
+          </div>
+          <div class="flex-1">
+            <div class="text-xs sm:text-sm font-black text-slate-800">${quest.title}</div>
+            <div class="text-[11px] text-slate-500 font-bold mb-1.5">${quest.desc}</div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div class="bg-gradient-to-l from-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+            <div class="text-[10px] text-slate-500 font-extrabold mt-0.5">${current} / ${quest.target}</div>
+          </div>
+        `;
+
+        const actionBtn = document.createElement('button');
+        actionBtn.type = 'button';
+        if (isClaimed) {
+          actionBtn.className = 'px-3 py-2 rounded-xl bg-emerald-100 text-emerald-800 font-black text-xs cursor-default shrink-0';
+          actionBtn.textContent = 'تم الاستلام ✅';
+        } else if (isDone) {
+          actionBtn.className = 'px-3 py-2 rounded-xl bg-gradient-to-b from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs shadow animate-pulse shrink-0';
+          actionBtn.textContent = `استلام +${quest.reward} 🪙`;
+          actionBtn.addEventListener('click', () => {
+            state.claimedQuests.push(quest.id);
+            state.coins += quest.reward;
+            sfx.win();
+            spawnConfettiBurst();
+            saveProgress();
+            renderAll();
+            renderQuestsModal();
+            showToast(`مبروك! استلمت +${quest.reward} عملة من إنجاز "${quest.title}" 🏅🪙`);
+          });
+        } else {
+          actionBtn.className = 'px-2.5 py-2 rounded-xl bg-slate-100 text-slate-500 font-extrabold text-[11px] cursor-default shrink-0';
+          actionBtn.textContent = `+${quest.reward} 🪙`;
+        }
+
+        card.appendChild(left);
+        card.appendChild(actionBtn);
+        container.appendChild(card);
+      });
+
+      const countEl = document.getElementById('questsCompletedCount');
+      if (countEl) countEl.textContent = `${completedTotal}/${QUEST_DEFINITIONS.length}`;
+      updateQuestsAlertBadges();
+    }
+
+    function openQuestsModal() {
+      renderQuestsModal();
+      document.getElementById('questsModal').classList.remove('hidden');
+    }
+
+    function showHomeScreen() {
+      updateHomeAndMapStats();
+      document.getElementById('mapScreenOverlay').classList.add('hidden');
+      document.getElementById('homeScreenOverlay').classList.remove('hidden');
+    }
+
+    function showInteractiveMapScreen() {
+      updateHomeAndMapStats();
+      renderInteractiveMap();
+      document.getElementById('homeScreenOverlay').classList.add('hidden');
+      document.getElementById('mapScreenOverlay').classList.remove('hidden');
+    }
+
+    function renderAll() {
+      renderHUD();
+      renderBoard();
+      renderDock();
+      renderStash();
+      updateHomeAndMapStats();
+      updateQuestsAlertBadges();
+    }
+
+    // ==========================================
+    // 7. PARTICLE CONFETTI EFFECTS (Canvas)
+    // ==========================================
+    const particles = [];
+    function spawnConfettiBurst() {
+      const canvas = document.getElementById('fxCanvas');
+      if (!canvas) return;
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      const cx = canvas.width / 2;
+      const cy = canvas.height - 40;
+      const colors = ['#facc15', '#4ade80', '#38bdf8', '#f472b6', '#fb923c'];
+
+      for (let i = 0; i < 24; i++) {
+        const angle = (Math.PI * 1.1) + Math.random() * (Math.PI * 0.8);
+        const speed = 3 + Math.random() * 6;
+        particles.push({
+          x: cx + (Math.random() - 0.5) * 90,
+          y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2,
+          size: 4 + Math.random() * 5,
+          color: colors[i % colors.length],
+          alpha: 1
+        });
+      }
+      requestAnimationFrame(stepParticles);
+    }
+
+    function stepParticles() {
+      const canvas = document.getElementById('fxCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.25;
+        p.alpha -= 0.028;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.globalAlpha = p.alpha;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (particles.length > 0) {
+        requestAnimationFrame(stepParticles);
+      }
+    }
+
+    // ==========================================
+    // 8. MODALS, TOASTS & APK HTML EXPORT
+    // ==========================================
+    let toastTimer = null;
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      if (!banner) return;
+      banner.textContent = msg;
+      banner.classList.remove('opacity-0');
+      banner.classList.add('opacity-100');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        banner.classList.remove('opacity-100');
+        banner.classList.add('opacity-0');
+      }, 2100);
+    }
+
+    function openStatusModal(mode) {
+      const modal = document.getElementById('statusModal');
+      const emoji = document.getElementById('modalEmoji');
+      const title = document.getElementById('modalTitle');
+      const desc = document.getElementById('modalDesc');
+      const btnPrimary = document.getElementById('btnModalPrimary');
+      const btnRevive = document.getElementById('btnModalRevive');
+
+      document.getElementById('modalScore').textContent = state.score;
+      document.getElementById('modalLevelNum').textContent = state.level;
+
+      state.lastLossReason = mode;
+      if (mode === 'win') {
+        emoji.textContent = '🎉';
+        title.textContent = `أحسنت! اكتملت المرحلة ${state.level}`;
+        desc.textContent = state.timeChallengeMode
+          ? 'أنهيت تحدي الوقت السريع وحصلت على مكافأة مضاعفة +100 عملة ذهبية! ⚡🪙'
+          : 'طابقت كل البلاطات وحصلت على مكافأة +50 عملة ذهبية!';
+        btnPrimary.classList.remove('hidden');
+        btnRevive.classList.add('hidden');
+      } else if (mode === 'timeout') {
+        emoji.textContent = '⏰';
+        title.textContent = 'انتهى الوقت في التحدي السريع!';
+        desc.textContent = 'يمكنك إضافة +45 ثانية إضافية أو إعادة المحاولة.';
+        btnPrimary.classList.add('hidden');
+        btnRevive.textContent = '🪙 إضافة +45 ثانية وتفريغ بلاطتين (30 عملة)';
+        btnRevive.classList.remove('hidden');
+      } else {
+        stopLevelTimer();
+        emoji.textContent = '😮';
+        title.textContent = 'امتلأ شريط التجميع (7/7)!';
+        desc.textContent = 'لا توجد مساحة لبلاطات جديدة في الشريط السفلي.';
+        btnPrimary.classList.add('hidden');
+        btnRevive.textContent = '🪙 إكمال اللعب وتفريغ 3 بلاطات (30 عملة)';
+        btnRevive.classList.remove('hidden');
+      }
+      modal.classList.remove('hidden');
+    }
+
+    function openLevelsModal() {
+      const grid = document.getElementById('levelsGrid');
+      grid.innerHTML = '';
+      const totalLevelsToShow = Math.max(12, state.maxUnlockedLevel + 3);
+      for (let lvl = 1; lvl <= totalLevelsToShow; lvl++) {
+        const unlocked = lvl <= state.maxUnlockedLevel;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = unlocked
+          ? (lvl === state.level
+              ? 'py-3 rounded-2xl bg-emerald-600 text-white font-black text-sm shadow border-2 border-emerald-300'
+              : 'py-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 font-extrabold text-sm border border-emerald-300')
+          : 'py-3 rounded-2xl bg-slate-100 text-slate-400 font-bold text-sm cursor-not-allowed';
+        btn.innerHTML = unlocked ? `المرحلة ${lvl} ⭐` : `🔒 ${lvl}`;
+        if (unlocked) {
+          btn.addEventListener('click', () => {
+            document.getElementById('levelsModal').classList.add('hidden');
+            startLevel(lvl);
+          });
+        }
+        grid.appendChild(btn);
+      }
+      document.getElementById('levelsModal').classList.remove('hidden');
+    }
+
+    const APK_ICONS_LIST = [
+      { emoji: '🧩', label: 'لغز البلاطات', bg: '#fef3c7' },
+      { emoji: '🍎', label: 'تفاحة حمراء', bg: '#fee2e2' },
+      { emoji: '🍉', label: 'بطيخ صيفي', bg: '#dcfce7' },
+      { emoji: '🐼', label: 'باندا لطيف', bg: '#f1f5f9' },
+      { emoji: '🧁', label: 'كب كيك ملون', bg: '#fce7f3' },
+      { emoji: '💎', label: 'جوهرة ملكية', bg: '#e0f2fe' },
+      { emoji: '👑', label: 'تاج ذهبي', bg: '#fef08a' },
+      { emoji: '🦊', label: 'ثعلب الغابة', bg: '#ffedd5' },
+      { emoji: '🍦', label: 'آيس كريم', bg: '#fef9c3' },
+      { emoji: '⭐', label: 'نجمة سحرية', bg: '#fef08a' },
+      { emoji: '🌸', label: 'زهرة ساكورا', bg: '#fae8ff' },
+      { emoji: '⚡', label: 'برق التحدي', bg: '#fef08a' }
+    ];
+
+    function createFaviconSvgDataUri(emoji, bg = '#fef3c7') {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="28" fill="${bg}"/><text x="50" y="68" font-size="62" text-anchor="middle" font-family="sans-serif">${emoji}</text></svg>`;
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    function renderApkCustomizerUI() {
+      const inputName = document.getElementById('inputCustomGameName');
+      const liveTitle = document.getElementById('apkLiveTitlePreview');
+      const iconPrev = document.getElementById('apkIconPreview');
+      const iconLabel = document.getElementById('selectedIconLabel');
+      const grid = document.getElementById('apkIconOptionsGrid');
+      if (!grid) return;
+
+      if (inputName) inputName.value = state.customGameTitle || 'تحدي البلاطات الثلاثية';
+      if (liveTitle) liveTitle.textContent = state.customGameTitle || 'تحدي البلاطات الثلاثية';
+      if (iconPrev) {
+        iconPrev.textContent = state.customGameIcon || '🧩';
+        iconPrev.style.backgroundColor = state.customIconBg || '#fef3c7';
+      }
+
+      grid.innerHTML = '';
+      APK_ICONS_LIST.forEach(opt => {
+        const isSelected = (state.customGameIcon === opt.emoji);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = isSelected
+          ? 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border-3 border-emerald-500 shadow-md flex items-center justify-center text-xl sm:text-2xl scale-105'
+          : 'w-10 h-10 sm:w-11 sm:h-11 rounded-2xl border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-xl sm:text-2xl transition-transform active:scale-95';
+        btn.style.backgroundColor = opt.bg;
+        btn.textContent = opt.emoji;
+        btn.title = opt.label;
+
+        btn.addEventListener('click', () => {
+          sfx.tap();
+          state.customGameIcon = opt.emoji;
+          state.customIconBg = opt.bg;
+          if (iconPrev) {
+            iconPrev.textContent = opt.emoji;
+            iconPrev.style.backgroundColor = opt.bg;
+          }
+          if (iconLabel) iconLabel.textContent = `${opt.emoji} ${opt.label}`;
+          renderApkCustomizerUI();
+        });
+        grid.appendChild(btn);
+      });
+    }
+
+    function downloadStandaloneHtml() {
+      const titleToExport = (state.customGameTitle || 'تحدي البلاطات الثلاثية').trim();
+      const iconToExport = state.customGameIcon || '🧩';
+      const bgToExport = state.customIconBg || '#fef3c7';
+      const iconDataUri = createFaviconSvgDataUri(iconToExport, bgToExport);
+
+      let exportedHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+
+      // Ensure <title> tag reflects the custom title
+      exportedHtml = exportedHtml.replace(/<title>.*?<\/title>/i, `<title>${titleToExport}</title>`);
+
+      // Ensure favicon & apple-touch-icon links exist with the custom icon SVG data URI
+      const iconTags = `<link rel="icon" type="image/svg+xml" href="${iconDataUri}" />\n  <link rel="apple-touch-icon" href="${iconDataUri}" />`;
+      if (exportedHtml.includes('<link rel="icon"')) {
+        exportedHtml = exportedHtml.replace(/<link rel="icon"[^>]*>/i, iconTags);
+      } else {
+        exportedHtml = exportedHtml.replace(/<head>/i, `<head>\n  ${iconTags}`);
+      }
+
+      // Also ensure main title on Home screen reflects the custom name
+      exportedHtml = exportedHtml.replace(
+        /<h1[^>]*>.*?<\/h1>/i,
+        `<h1 class="text-3xl sm:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-300 to-emerald-300 drop-shadow mb-1">${titleToExport}</h1>`
+      );
+
+      const blob = new Blob([exportedHtml], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`تم تحميل index.html باسم "${titleToExport}" وأيقونة ${iconToExport} 📲`);
+    }
+
+    // ==========================================
+    // 9. EVENT LISTENERS & INITIALIZATION
+    // ==========================================
+    window.addEventListener('load', () => {
+      loadSavedProgress();
+      applyThemeById(THEMES[state.themeIndex] || 'theme-meadow');
+      startLevel(state.level);
+
+      window.addEventListener('resize', () => {
+        renderBoard();
+      });
+
+      // Power-ups
+      document.getElementById('btnUndo').addEventListener('click', useUndo);
+      document.getElementById('btnHint').addEventListener('click', useHint);
+      document.getElementById('btnShuffle').addEventListener('click', useShuffle);
+      document.getElementById('btnStash').addEventListener('click', useStash);
+
+      // Theme cycling
+      document.getElementById('btnTheme').addEventListener('click', () => {
+        const body = document.getElementById('appBody');
+        body.classList.remove(THEMES[state.themeIndex]);
+        state.themeIndex = (state.themeIndex + 1) % THEMES.length;
+        body.classList.add(THEMES[state.themeIndex]);
+        showToast('تم تغيير مظهر الخلفية 🎨');
+      });
+
+      // Sound toggle (both HUD and Home Screen)
+      function toggleSoundMute() {
+        sfx.muted = !sfx.muted;
+        const icon = sfx.muted ? '🔇' : '🔊';
+        document.getElementById('btnSound').textContent = icon;
+        const homeSoundBtn = document.getElementById('btnHomeSound');
+        if (homeSoundBtn) homeSoundBtn.textContent = icon;
+        showToast(sfx.muted ? 'تم كتم الصوت 🔇' : 'تم تفعيل الصوت 🔊');
+      }
+      document.getElementById('btnSound').addEventListener('click', toggleSoundMute);
+      document.getElementById('btnHomeSound').addEventListener('click', toggleSoundMute);
+
+      // Home Screen & Interactive Map Screen Navigation
+      document.getElementById('btnOpenHome').addEventListener('click', () => {
+        sfx.tap();
+        showHomeScreen();
+      });
+      document.getElementById('btnStartPlayNow').addEventListener('click', () => {
+        sfx.tap();
+        document.getElementById('homeScreenOverlay').classList.add('hidden');
+        document.getElementById('mapScreenOverlay').classList.add('hidden');
+        startLevel(state.level);
+      });
+      document.getElementById('btnOpenMapScreen').addEventListener('click', () => {
+        sfx.tap();
+        showInteractiveMapScreen();
+      });
+      document.getElementById('btnBackToHomeFromMap').addEventListener('click', () => {
+        sfx.tap();
+        showHomeScreen();
+      });
+      document.getElementById('btnResumeFromMap').addEventListener('click', () => {
+        sfx.tap();
+        document.getElementById('mapScreenOverlay').classList.add('hidden');
+        document.getElementById('homeScreenOverlay').classList.add('hidden');
+        renderBoard();
+      });
+// btnHomeApk removed
+
+      // Status Modal buttons
+      document.getElementById('btnModalPrimary').addEventListener('click', () => {
+        document.getElementById('statusModal').classList.add('hidden');
+        startLevel(state.level + 1);
+      });
+
+      document.getElementById('btnModalRetry').addEventListener('click', () => {
+        document.getElementById('statusModal').classList.add('hidden');
+        startLevel(state.level);
+      });
+
+      document.getElementById('btnModalRevive').addEventListener('click', () => {
+        if (state.coins < 30) {
+          showToast('رصيد العملات غير كافٍ (تحتاج 30 عملة)!');
+          return;
+        }
+        state.coins -= 30;
+        const moved = state.dock.splice(0, 3);
+        moved.forEach(t => {
+          t.status = 'stash';
+          state.stash.push(t);
+        });
+        if (state.timeChallengeMode) {
+          state.timeLeftSeconds = Math.max(state.timeLeftSeconds, 0) + 45;
+          startLevelTimerIfEnabled();
+        }
+        document.getElementById('statusModal').classList.add('hidden');
+        sfx.powerup();
+        renderAll();
+      });
+
+      // Levels Modal
+      document.getElementById('btnOpenLevels').addEventListener('click', openLevelsModal);
+      document.getElementById('btnCloseLevels').addEventListener('click', () => {
+        document.getElementById('levelsModal').classList.add('hidden');
+      });
+      document.getElementById('btnRestartCurrent').addEventListener('click', () => {
+        document.getElementById('levelsModal').classList.add('hidden');
+        startLevel(state.level);
+      });
+      document.getElementById('btnResetSave').addEventListener('click', () => {
+        state.level = 1;
+        state.maxUnlockedLevel = 1;
+        state.score = 0;
+        state.coins = 150;
+        saveProgress();
+        document.getElementById('levelsModal').classList.add('hidden');
+        startLevel(1);
+        showToast('تمت إعادة ضبط التقدم للمرحلة 1');
+      });
+
+      // Shop Modal Listeners
+      document.getElementById('btnOpenShopHud').addEventListener('click', () => {
+        sfx.tap();
+        openShopModal('packs');
+      });
+      document.getElementById('btnOpenShopHome').addEventListener('click', () => {
+        sfx.tap();
+        openShopModal('packs');
+      });
+      document.getElementById('btnCloseShop').addEventListener('click', () => {
+        document.getElementById('shopModal').classList.add('hidden');
+      });
+      document.getElementById('btnCloseShopBottom').addEventListener('click', () => {
+        document.getElementById('shopModal').classList.add('hidden');
+      });
+      document.getElementById('tabBtnPacks').addEventListener('click', () => {
+        sfx.tap();
+        state.shopTab = 'packs';
+        renderShopModal();
+      });
+      document.getElementById('tabBtnThemes').addEventListener('click', () => {
+        sfx.tap();
+        state.shopTab = 'themes';
+        renderShopModal();
+      });
+      document.getElementById('btnClaimFreeCoins').addEventListener('click', () => {
+        state.coins += 100;
+        sfx.win();
+        saveProgress();
+        renderAll();
+        renderShopModal();
+        showToast('تمت إضافة +100 عملة ذهبية هدية لرصيدك! 🪙🎉');
+      });
+
+      // Time Challenge Mode Buttons
+      document.getElementById('btnStartTimeChallenge').addEventListener('click', () => {
+        sfx.tap();
+        state.timeChallengeMode = true;
+        document.getElementById('homeScreenOverlay').classList.add('hidden');
+        document.getElementById('mapScreenOverlay').classList.add('hidden');
+        startLevel(state.level);
+      });
+      document.getElementById('btnToggleTimeModeHud').addEventListener('click', () => {
+        sfx.tap();
+        state.timeChallengeMode = !state.timeChallengeMode;
+        if (state.timeChallengeMode) {
+          startLevelTimerIfEnabled();
+          showToast('تم تفعيل وضع تحدي الوقت السريع! ⚡ (عملات مضاعفة)');
+        } else {
+          stopLevelTimer();
+          updateTimerUI();
+          showToast('تم التبديل إلى الوضع الحر بدون مؤقت 🌿');
+        }
+      });
+
+      // Lucky Wheel & Daily Chest Modal
+      function updateWheelModalUI() {
+        const badge = document.getElementById('wheelSpinsLeftBadge');
+        if (badge) {
+          badge.textContent = state.freeSpins > 0 ? `${state.freeSpins} لفات مجانية` : '25 عملة 🪙';
+        }
+        const dailyBtn = document.getElementById('btnClaimDailyChest');
+        const dailyTxt = document.getElementById('dailyRewardStatusText');
+        if (dailyBtn && dailyTxt) {
+          if (state.dailyClaimed) {
+            dailyBtn.disabled = true;
+            dailyBtn.textContent = 'تم الاستلام ✅';
+            dailyBtn.className = 'px-3 py-1.5 rounded-xl bg-slate-200 text-slate-500 text-xs font-black';
+            dailyTxt.textContent = 'حصلت على مكافأة الصندوق اليومي بنجاح!';
+          }
+        }
+      }
+
+      function openWheelModal() {
+        updateWheelModalUI();
+        document.getElementById('wheelModal').classList.remove('hidden');
+      }
+
+      document.getElementById('btnOpenWheelHud').addEventListener('click', () => {
+        sfx.tap();
+        openWheelModal();
+      });
+      document.getElementById('btnOpenWheelHome').addEventListener('click', () => {
+        sfx.tap();
+        openWheelModal();
+      });
+      document.getElementById('btnCloseWheel').addEventListener('click', () => {
+        document.getElementById('wheelModal').classList.add('hidden');
+      });
+      document.getElementById('btnCloseWheelBottom').addEventListener('click', () => {
+        document.getElementById('wheelModal').classList.add('hidden');
+      });
+      document.getElementById('btnClaimDailyChest').addEventListener('click', () => {
+        if (state.dailyClaimed) return;
+        state.dailyClaimed = true;
+        state.coins += 120;
+        sfx.win();
+        saveProgress();
+        renderAll();
+        updateWheelModalUI();
+        showToast('حصلت على +120 عملة من الصندوق اليومي! 🎁🪙');
+      });
+      document.getElementById('btnSpinWheelNow').addEventListener('click', () => {
+        if (state.isSpinningWheel) return;
+        if (state.freeSpins <= 0) {
+          if (state.coins < 25) {
+            sfx.blocked();
+            showToast('تحتاج 25 عملة للف العجلة!');
+            return;
+          }
+          state.coins -= 25;
+        } else {
+          state.freeSpins--;
+        }
+
+        state.isSpinningWheel = true;
+        sfx.powerup();
+        const prizeIdx = Math.floor(Math.random() * WHEEL_PRIZES.length);
+        const prize = WHEEL_PRIZES[prizeIdx];
+        const extraSpins = (4 + Math.floor(Math.random() * 3)) * 360;
+        state.wheelAngle += extraSpins + prizeIdx * 45;
+
+        const disc = document.getElementById('wheelDisc');
+        if (disc) {
+          disc.style.transform = `rotate(${state.wheelAngle}deg)`;
+        }
+        document.getElementById('wheelPrizeResult').textContent = 'جاري لف العجلة... 🎰';
+        updateWheelModalUI();
+        renderAll();
+
+        setTimeout(() => {
+          state.isSpinningWheel = false;
+          if (prize.type === 'coins') state.coins += prize.amount;
+          if (prize.type === 'hint') state.powers.hint += prize.amount;
+          if (prize.type === 'shuffle') state.powers.shuffle += prize.amount;
+          if (prize.type === 'stash') state.powers.stash += prize.amount;
+          if (prize.type === 'undo') state.powers.undo += prize.amount;
+
+          sfx.win();
+          saveProgress();
+          renderAll();
+          updateWheelModalUI();
+          document.getElementById('wheelPrizeResult').textContent = `🎉 ربحت: ${prize.label}!`;
+          showToast(`مبروك! ربحت ${prize.label}`);
+        }, 3450);
+      });
+
+      // Quests & Achievements Modal Listeners
+      document.getElementById('btnOpenQuestsHud').addEventListener('click', () => {
+        sfx.tap();
+        openQuestsModal();
+      });
+      document.getElementById('btnOpenQuestsHome').addEventListener('click', () => {
+        sfx.tap();
+        openQuestsModal();
+      });
+      document.getElementById('btnCloseQuests').addEventListener('click', () => {
+        document.getElementById('questsModal').classList.add('hidden');
+      });
+      document.getElementById('btnCloseQuestsBottom').addEventListener('click', () => {
+        document.getElementById('questsModal').classList.add('hidden');
+      });
+
+      // Difficulty & Vibration UI Sync
+      function updateSettingsAndDifficultyUI() {
+        const d = state.difficulty || 'medium';
+        const homeEasy = document.getElementById('btnHomeDiffEasy');
+        const homeMed = document.getElementById('btnHomeDiffMedium');
+        const homeHard = document.getElementById('btnHomeDiffHard');
+        const activeHomeCls = 'py-1.5 rounded-xl text-xs font-black bg-emerald-500 text-white shadow border border-emerald-200';
+        const inactiveHomeCls = 'py-1.5 rounded-xl text-xs font-black bg-white/10 text-white/80 hover:bg-white/20';
+        if (homeEasy) homeEasy.className = d === 'easy' ? activeHomeCls : inactiveHomeCls;
+        if (homeMed) homeMed.className = d === 'medium' ? activeHomeCls : inactiveHomeCls;
+        if (homeHard) homeHard.className = d === 'hard' ? activeHomeCls : inactiveHomeCls;
+
+        const modEasy = document.getElementById('btnModalDiffEasy');
+        const modMed = document.getElementById('btnModalDiffMedium');
+        const modHard = document.getElementById('btnModalDiffHard');
+        const activeModCls = 'p-2.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50 text-center shadow-xs';
+        const inactiveModCls = 'p-2.5 rounded-2xl border border-slate-200 bg-slate-50 text-center hover:bg-slate-100';
+        if (modEasy) modEasy.className = d === 'easy' ? activeModCls : inactiveModCls;
+        if (modMed) modMed.className = d === 'medium' ? activeModCls : inactiveModCls;
+        if (modHard) modHard.className = d === 'hard' ? activeModCls : inactiveModCls;
+
+        const descEl = document.getElementById('difficultyDescText');
+        if (descEl) {
+          if (d === 'easy') descEl.textContent = '🌱 المستوى السهل: عدد بلاطات وطبقات أقل، ووقت إضافي (+50 عملة للفوز).';
+          if (d === 'medium') descEl.textContent = '⚡ المستوى المتوسط: توازن مثالي في عدد الطبقات وتنوع البلاطات (+75 عملة للفوز).';
+          if (d === 'hard') descEl.textContent = '🔥 المستوى الصعب: طبقات إضافية وتنوع أكبر للبلاطات للمحترفين (+110 عملة للفوز).';
+        }
+
+        const vibBtnModal = document.getElementById('btnToggleVibrationModal');
+        const homeVibBtn = document.getElementById('btnHomeVibrate');
+        if (vibBtnModal) {
+          vibBtnModal.textContent = sfx.vibrateEnabled ? 'مُفعّل ✅' : 'مُغلق ❌';
+          vibBtnModal.className = sfx.vibrateEnabled
+            ? 'px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black shadow'
+            : 'px-3.5 py-2 rounded-xl bg-slate-200 text-slate-600 text-xs font-black';
+        }
+        if (homeVibBtn) {
+          homeVibBtn.textContent = sfx.vibrateEnabled ? '📳' : '📴';
+        }
+
+        const sndBtnModal = document.getElementById('btnToggleSoundModal');
+        if (sndBtnModal) {
+          sndBtnModal.textContent = !sfx.muted ? 'مُفعّل ✅' : 'مكتوم 🔇';
+          sndBtnModal.className = !sfx.muted
+            ? 'px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black shadow'
+            : 'px-3.5 py-2 rounded-xl bg-slate-200 text-slate-600 text-xs font-black';
+        }
+      }
+
+      function setDifficulty(newDiff) {
+        state.difficulty = newDiff;
+        sfx.tap();
+        saveProgress();
+        updateSettingsAndDifficultyUI();
+        startLevel(state.level);
+        const names = { easy: 'السهل 🌱', medium: 'المتوسط ⚡', hard: 'الصعب 🔥' };
+        showToast(`تم اختيار المستوى ${names[newDiff]}`);
+      }
+
+      function toggleVibration() {
+        sfx.vibrateEnabled = !sfx.vibrateEnabled;
+        if (sfx.vibrateEnabled) sfx.vibrate([25, 40, 45]);
+        saveProgress();
+        updateSettingsAndDifficultyUI();
+        showToast(sfx.vibrateEnabled ? 'تم تفعيل الاهتزاز عند اللمس 📳' : 'تم إيقاف الاهتزاز 📴');
+      }
+
+      updateSettingsAndDifficultyUI();
+
+      document.getElementById('btnHomeDiffEasy').addEventListener('click', () => setDifficulty('easy'));
+      document.getElementById('btnHomeDiffMedium').addEventListener('click', () => setDifficulty('medium'));
+      document.getElementById('btnHomeDiffHard').addEventListener('click', () => setDifficulty('hard'));
+      document.getElementById('btnModalDiffEasy').addEventListener('click', () => setDifficulty('easy'));
+      document.getElementById('btnModalDiffMedium').addEventListener('click', () => setDifficulty('medium'));
+      document.getElementById('btnModalDiffHard').addEventListener('click', () => setDifficulty('hard'));
+
+      document.getElementById('btnHomeVibrate').addEventListener('click', toggleVibration);
+      document.getElementById('btnToggleVibrationModal').addEventListener('click', toggleVibration);
+      document.getElementById('btnToggleSoundModal').addEventListener('click', () => {
+        toggleSoundMute();
+        updateSettingsAndDifficultyUI();
+      });
+
+      document.getElementById('btnOpenSettingsHud').addEventListener('click', () => {
+        sfx.tap();
+        updateSettingsAndDifficultyUI();
+        document.getElementById('settingsModal').classList.remove('hidden');
+      });
+      document.getElementById('btnCloseSettings').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.add('hidden');
+      });
+      document.getElementById('btnCloseSettingsBottom').addEventListener('click', () => {
+        document.getElementById('settingsModal').classList.add('hidden');
+      });
+
+// APK modal removed
+      document.getElementById('btnCloseApk').addEventListener('click', () => {
+        document.getElementById('apkModal').classList.add('hidden');
+      });
+      document.getElementById('btnCloseApkBottom').addEventListener('click', () => {
+        document.getElementById('apkModal').classList.add('hidden');
+      });
+      document.getElementById('btnDownloadHtml').addEventListener('click', downloadStandaloneHtml);
+    });
+  </script>
+</body>
+</html>
